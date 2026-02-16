@@ -11,6 +11,7 @@
     "install:all": "pnpm install",
     "dev:backend": "pnpm --filter backend dev",
     "dev:frontend": "pnpm --filter frontend dev",
-    "build": "pnpm --filter backend build && pnpm --filter frontend build"
+    "build": "pnpm --filter backend build && pnpm --filter frontend build",
+    "test:backend": "npm run test --workspace backend"
   }
 }

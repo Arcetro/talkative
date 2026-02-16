@@ -10,6 +10,9 @@ dist/
 .env
 .env.local
 
+# runtime test/generated state
+backend/data/orchestrator/
+
 # lockfiles from other managers
 package-lock.json
 yarn.lock
