@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { nanoid } from "nanoid";
+import { mirrorAgentEvent } from "../orchestrator/service.js";
 import { interpretConversation } from "../services/interpreter.js";
 import { logRouterUsage } from "../router/service.js";
 import { createPatchFromInterpretation } from "./workflowPatch.js";
@@ -66,7 +68,7 @@ export class AgentRunner {
   }
 
   private async emit(type: AgentEvent["type"], message: string, payload?: Record<string, unknown>): Promise<AgentEvent> {
-    return appendAgentEvent({
+    const saved = await appendAgentEvent({
       agentId: this.agent.id,
       agent_id: this.agent.agent_id,
       tenant_id: this.agent.tenant_id,
@@ -74,6 +76,16 @@ export class AgentRunner {
       message,
       payload
     });
+    const run_id = typeof payload?.run_id === "string" ? payload.run_id : `session-${this.agent.agent_id}`;
+    await mirrorAgentEvent({
+      tenant_id: this.agent.tenant_id,
+      agent_id: this.agent.agent_id,
+      run_id,
+      event_type: type,
+      message,
+      payload
+    });
+    return saved;
   }
 
   private async applyConfig(): Promise<void> {
@@ -189,6 +201,7 @@ export class AgentRunner {
 
   async handleMessage(message: string): Promise<AgentMessageResponse> {
     const startedAt = Date.now();
+    const run_id = `run-${nanoid(8)}`;
     const events: AgentEvent[] = [];
     const now = new Date().toISOString();
     this.agent.lastMessageAt = now;
@@ -196,17 +209,19 @@ export class AgentRunner {
     this.agent.updatedAt = now;
     await this.onAgentUpdate(this.agent);
 
-    events.push(await this.emit("MESSAGE_RECEIVED", message));
+    events.push(await this.emit("MESSAGE_RECEIVED", message, { run_id }));
 
     const interpretation = interpretConversation(message);
     events.push(
       await this.emit("INTERPRETATION_RESULT", "Interpretation generated", {
+        run_id,
         detectedTasks: interpretation.detectedTasks
       })
     );
     const workflowPatch = createPatchFromInterpretation(interpretation, 0);
     events.push(
       await this.emit("WORKFLOW_PATCH_PROPOSED", "Workflow patch proposed from conversation", {
+        run_id,
         patchId: workflowPatch.id,
         operations: workflowPatch.operations.length
       })
@@ -227,27 +242,36 @@ export class AgentRunner {
       const command =
         "node skills/mail-triage/scripts/triageEmails.ts --input inputs/emails.sample.json --output outputs/triage-result.json";
       try {
-        events.push(await this.emit("TOOL_RUN_STARTED", "Mail triage tool started", { command }));
+        events.push(await this.emit("TOOL_RUN_STARTED", "Mail triage tool started", { run_id, command }));
         const result = await runWorkspaceTool(this.agent.workspace, command);
         if (result.ok) {
           actions.push({ type: "tool.executed", data: { command, output: "outputs/triage-result.json" } });
-          events.push(await this.emit("TOOL_RUN_FINISHED", "Mail triage skill executed", { command, ok: true }));
-          events.push(await this.emit("METRIC_RECORDED", "Mail triage metric recorded", { command, runMs: 0 }));
+          events.push(await this.emit("TOOL_RUN_FINISHED", "Mail triage skill executed", { run_id, command, ok: true }));
+          events.push(await this.emit("METRIC_RECORDED", "Mail triage metric recorded", { run_id, command, runMs: 0 }));
           reply += " Mail triage completed and wrote outputs/triage-result.json.";
         } else {
           actions.push({ type: "tool.failed", data: { command } });
-          events.push(await this.emit("TOOL_RUN_FINISHED", "Mail triage skill failed", { stderr: result.stderr, ok: false }));
+          events.push(
+            await this.emit("TOOL_RUN_FINISHED", "Mail triage skill failed", { run_id, stderr: result.stderr, ok: false })
+          );
           reply += " Mail triage failed.";
         }
       } catch (error) {
         actions.push({ type: "tool.failed", data: { command } });
-        events.push(await this.emit("TOOL_RUN_FINISHED", "Mail triage rejected", { error: (error as Error).message, ok: false }));
+        events.push(
+          await this.emit("TOOL_RUN_FINISHED", "Mail triage rejected", {
+            run_id,
+            error: (error as Error).message,
+            ok: false
+          })
+        );
         reply += " Mail triage command rejected by safety rules.";
       }
     }
 
     events.push(
       await this.emit("WORKFLOW_PATCH_APPLIED", "Workflow patch accepted in session", {
+        run_id,
         patchId: workflowPatch.id
       })
     );

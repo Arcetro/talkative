@@ -77,6 +77,14 @@ Usage records include:
 - `POST /fleet/agents`
 - `POST /fleet/agents/:id/provision`
 
+### Orchestrator APIs (contract + lifecycle)
+
+- `GET /orchestrator/contracts`
+- `POST /orchestrator/commands`
+- `POST /orchestrator/events`
+- `GET /orchestrator/runs/:run_id`
+- `GET /orchestrator/runs?tenant_id=&agent_id=&limit=`
+
 Fleet persistence:
 - `/Users/monotributistar/SOURCES/Talkative /backend/data/tenants.json`
 - `/Users/monotributistar/SOURCES/Talkative /backend/data/clouds.json`

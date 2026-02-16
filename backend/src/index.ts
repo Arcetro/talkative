@@ -4,6 +4,7 @@ import { agentHub } from "./agents/agentHub.js";
 import { agentRouter } from "./routes/agentRoutes.js";
 import { conversationRouter } from "./routes/conversationRoutes.js";
 import { fleetRouter } from "./routes/fleetRoutes.js";
+import { orchestratorRouter } from "./routes/orchestratorRoutes.js";
 import { routerAdminRouter } from "./routes/routerAdminRoutes.js";
 import { workflowRouter } from "./routes/workflowRoutes.js";
 import { subscribeEvents } from "./services/eventBus.js";
@@ -23,6 +24,7 @@ app.use(conversationRouter);
 app.use(agentRouter);
 app.use(routerAdminRouter);
 app.use(fleetRouter);
+app.use(orchestratorRouter);
 
 app.get("/events", (_req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
