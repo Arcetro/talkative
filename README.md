@@ -85,6 +85,14 @@ Usage records include:
 - `GET /orchestrator/runs/:run_id`
 - `GET /orchestrator/runs?tenant_id=&agent_id=&limit=`
 
+### Channel APIs (separated ingress)
+
+- External client channel:
+  - `POST /channels/client/messages`
+  - `GET /channels/client/messages?tenant_id=&agent_id=&limit=`
+- Internal operator channel:
+  - `POST /channels/internal/actions`
+
 Fleet persistence:
 - `/Users/monotributistar/SOURCES/Talkative /backend/data/tenants.json`
 - `/Users/monotributistar/SOURCES/Talkative /backend/data/clouds.json`

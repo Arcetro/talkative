@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import { agentHub } from "./agents/agentHub.js";
 import { agentRouter } from "./routes/agentRoutes.js";
+import { channelRouter } from "./routes/channelRoutes.js";
 import { conversationRouter } from "./routes/conversationRoutes.js";
 import { fleetRouter } from "./routes/fleetRoutes.js";
 import { orchestratorRouter } from "./routes/orchestratorRoutes.js";
@@ -22,6 +23,7 @@ app.get("/health", (_req, res) => {
 app.use(workflowRouter);
 app.use(conversationRouter);
 app.use(agentRouter);
+app.use(channelRouter);
 app.use(routerAdminRouter);
 app.use(fleetRouter);
 app.use(orchestratorRouter);
