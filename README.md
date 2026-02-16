@@ -84,6 +84,9 @@ Usage records include:
 - `POST /orchestrator/events`
 - `GET /orchestrator/runs/:run_id`
 - `GET /orchestrator/runs?tenant_id=&agent_id=&limit=`
+- `POST /orchestrator/runs/:run_id/pause`
+- `POST /orchestrator/runs/:run_id/resume`
+- `POST /orchestrator/runs/:run_id/cancel`
 
 ### Channel APIs (separated ingress)
 

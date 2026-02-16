@@ -86,6 +86,47 @@ orchestratorRouter.get("/orchestrator/runs/:run_id", async (req, res) => {
   return res.json(run);
 });
 
+async function controlRun(run_id: string, type: "pause" | "resume" | "cancel") {
+  const run = await getRun(run_id);
+  if (!run) {
+    throw new Error("Run not found");
+  }
+  return appendCommand({
+    tenant_id: run.tenant_id,
+    agent_id: run.agent_id,
+    run_id: run.run_id,
+    type,
+    payload: { source: "run-control-api" }
+  });
+}
+
+orchestratorRouter.post("/orchestrator/runs/:run_id/pause", async (req, res) => {
+  try {
+    const row = await controlRun(req.params.run_id, "pause");
+    return res.json({ ok: true, command: row });
+  } catch (error) {
+    return res.status(404).json({ error: (error as Error).message });
+  }
+});
+
+orchestratorRouter.post("/orchestrator/runs/:run_id/resume", async (req, res) => {
+  try {
+    const row = await controlRun(req.params.run_id, "resume");
+    return res.json({ ok: true, command: row });
+  } catch (error) {
+    return res.status(404).json({ error: (error as Error).message });
+  }
+});
+
+orchestratorRouter.post("/orchestrator/runs/:run_id/cancel", async (req, res) => {
+  try {
+    const row = await controlRun(req.params.run_id, "cancel");
+    return res.json({ ok: true, command: row });
+  } catch (error) {
+    return res.status(404).json({ error: (error as Error).message });
+  }
+});
+
 orchestratorRouter.get("/orchestrator/runs", async (req, res) => {
   const limit = Number(req.query.limit ?? 100);
   const runs = await listRuns({
