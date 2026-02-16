@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { BACKEND_ROOT } from "../agents/paths.js";
+import { DATA_ROOT } from "../agents/paths.js";
 
 export interface ApprovalRequest {
   id: string;
@@ -16,7 +16,7 @@ export interface ApprovalRequest {
   note?: string;
 }
 
-const APPROVAL_DIR = path.join(BACKEND_ROOT, "data", "approvals");
+const APPROVAL_DIR = path.join(DATA_ROOT, "approvals");
 const APPROVAL_FILE = path.join(APPROVAL_DIR, "requests.json");
 
 async function ensure(): Promise<void> {

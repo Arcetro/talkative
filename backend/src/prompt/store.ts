@@ -1,10 +1,10 @@
 import { nanoid } from "nanoid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { BACKEND_ROOT } from "../agents/paths.js";
+import { DATA_ROOT } from "../agents/paths.js";
 import { PromptVersion } from "./types.js";
 
-const PROMPT_DIR = path.join(BACKEND_ROOT, "data", "prompts");
+const PROMPT_DIR = path.join(DATA_ROOT, "prompts");
 const PROMPT_FILE = path.join(PROMPT_DIR, "registry.json");
 
 async function ensure(): Promise<void> {

@@ -9,9 +9,9 @@
   ],
   "scripts": {
     "install:all": "pnpm install",
-    "dev:backend": "pnpm --filter backend dev",
-    "dev:frontend": "pnpm --filter frontend dev",
-    "build": "pnpm --filter backend build && pnpm --filter frontend build",
+    "dev:backend": "pnpm --filter workflow-agent-backend dev",
+    "dev:frontend": "pnpm --filter workflow-agent-frontend dev",
+    "build": "pnpm --filter workflow-agent-backend build && pnpm --filter workflow-agent-frontend build",
     "test:backend": "npm run test --workspace backend"
   }
 }

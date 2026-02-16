@@ -1,11 +1,22 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-import { appendCommand, appendEvent, getRun } from "./store.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+const dataRoot = await mkdtemp(path.join(tmpdir(), "talkative-orchestrator-test-"));
+process.env.TALKATIVE_DATA_ROOT = dataRoot;
+const orchestratorStore = await import("./store.js");
+
+test.after(async () => {
+  delete process.env.TALKATIVE_DATA_ROOT;
+  await rm(dataRoot, { recursive: true, force: true });
+});
 
 test("orchestrator store creates and evolves run lifecycle", async () => {
   const runId = `test-run-${Date.now()}`;
 
-  await appendCommand({
+  await orchestratorStore.appendCommand({
     tenant_id: "tenant-default",
     agent_id: "agent-test",
     run_id: runId,
@@ -13,12 +24,12 @@ test("orchestrator store creates and evolves run lifecycle", async () => {
     payload: { source: "test" }
   });
 
-  let run = await getRun(runId);
+  let run = await orchestratorStore.getRun(runId);
   assert.ok(run);
   assert.equal(run?.status, "running");
   assert.equal(run?.subagent_state, "running");
 
-  await appendCommand({
+  await orchestratorStore.appendCommand({
     tenant_id: "tenant-default",
     agent_id: "agent-test",
     run_id: runId,
@@ -26,11 +37,11 @@ test("orchestrator store creates and evolves run lifecycle", async () => {
     payload: { source: "test" }
   });
 
-  run = await getRun(runId);
+  run = await orchestratorStore.getRun(runId);
   assert.equal(run?.status, "paused");
   assert.equal(run?.subagent_state, "paused");
 
-  await appendEvent({
+  await orchestratorStore.appendEvent({
     tenant_id: "tenant-default",
     agent_id: "agent-test",
     run_id: runId,
@@ -39,7 +50,7 @@ test("orchestrator store creates and evolves run lifecycle", async () => {
     payload: { source: "test" }
   });
 
-  run = await getRun(runId);
+  run = await orchestratorStore.getRun(runId);
   assert.equal(run?.status, "failed");
   assert.equal(run?.subagent_state, "error");
   assert.equal(run?.last_error, "simulated error");

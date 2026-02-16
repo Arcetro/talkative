@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { BACKEND_ROOT } from "../agents/paths.js";
+import { DATA_ROOT } from "../agents/paths.js";
 
 export interface ClientMessageRecord {
   id: string;
@@ -23,7 +23,7 @@ export interface InternalActionRecord {
   created_at: string;
 }
 
-const CHANNELS_DIR = path.join(BACKEND_ROOT, "data", "channels");
+const CHANNELS_DIR = path.join(DATA_ROOT, "channels");
 const CLIENT_FILE = path.join(CHANNELS_DIR, "client-messages.jsonl");
 const INTERNAL_FILE = path.join(CHANNELS_DIR, "internal-actions.jsonl");
 

@@ -1,11 +1,11 @@
 import { nanoid } from "nanoid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { BACKEND_ROOT } from "../agents/paths.js";
+import { DATA_ROOT } from "../agents/paths.js";
 import { reduceRunStatus, reduceSubagentState } from "./stateMachine.js";
 import { OrchestratorCommand, OrchestratorEvent, RunRecord } from "./types.js";
 
-const ORCH_DIR = path.join(BACKEND_ROOT, "data", "orchestrator");
+const ORCH_DIR = path.join(DATA_ROOT, "orchestrator");
 const COMMANDS_FILE = path.join(ORCH_DIR, "commands.jsonl");
 const EVENTS_FILE = path.join(ORCH_DIR, "events.jsonl");
 const RUNS_FILE = path.join(ORCH_DIR, "runs.json");

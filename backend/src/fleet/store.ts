@@ -1,11 +1,11 @@
 import { nanoid } from "nanoid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { BACKEND_ROOT } from "../agents/paths.js";
+import { DATA_ROOT } from "../agents/paths.js";
 import { AgentRecord } from "../agents/types.js";
 import { CloudPool, NodeHost, Tenant } from "./types.js";
 
-const DATA_DIR = path.join(BACKEND_ROOT, "data");
+const DATA_DIR = DATA_ROOT;
 const TENANTS_FILE = path.join(DATA_DIR, "tenants.json");
 const CLOUDS_FILE = path.join(DATA_DIR, "clouds.json");
 const NODES_FILE = path.join(DATA_DIR, "nodes.json");

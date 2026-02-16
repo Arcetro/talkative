@@ -200,6 +200,20 @@ npm run dev:frontend
 4. Open:
 - [http://localhost:5173](http://localhost:5173)
 
+## Tests (TDD baseline)
+
+Run backend tests:
+
+```bash
+npm run test:backend
+```
+
+Covers:
+- tool runner contract + workspace safety
+- orchestrator state machine and run store lifecycle
+- prompt versioning/activation store
+- approval request/decision store
+
 ## Fleet Quickstart
 
 ### 1) Register a node (local mock target)

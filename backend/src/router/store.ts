@@ -1,10 +1,10 @@
 import { nanoid } from "nanoid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { BACKEND_ROOT } from "../agents/paths.js";
+import { DATA_ROOT } from "../agents/paths.js";
 import { BudgetCaps, RouterRuleSet, RouterUsageRecord } from "./types.js";
 
-const ROUTER_DIR = path.join(BACKEND_ROOT, "data", "llm-router");
+const ROUTER_DIR = path.join(DATA_ROOT, "llm-router");
 const RULES_FILE = path.join(ROUTER_DIR, "rules.json");
 const BUDGETS_FILE = path.join(ROUTER_DIR, "budgets.json");
 const USAGE_FILE = path.join(ROUTER_DIR, "usage.jsonl");
