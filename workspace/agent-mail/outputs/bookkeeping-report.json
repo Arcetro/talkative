@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-02-15T22:27:26.523Z",
+  "transactions": 2,
+  "totalsByCategory": {
+    "sales": 200,
+    "supplies": -70
+  },
+  "incomeTotal": 200,
+  "expenseTotal": 70,
+  "net": 130
+}

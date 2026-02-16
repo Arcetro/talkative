@@ -1,0 +1,16 @@
+{
+  "default_model": "gpt-4o-mini",
+  "routes": [
+    {
+      "match": "triage|email|inbox",
+      "model": "gpt-4o-mini",
+      "max_tokens": 800
+    },
+    {
+      "match": "workflow|process|node",
+      "model": "gpt-4o-mini",
+      "max_tokens": 900
+    }
+  ],
+  "updated_at": "2026-02-15T23:15:03.781Z"
+}

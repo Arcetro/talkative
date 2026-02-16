@@ -1,0 +1,3 @@
+- If `changedFiles` > 20, recommend creating a cleanup checklist.
+- If untracked files dominate, suggest adding .gitignore entries.
+- If branch is detached, warn before automation tasks.

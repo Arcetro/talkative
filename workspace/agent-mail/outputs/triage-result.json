@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-02-15T16:35:37.228Z",
+  "totals": {
+    "billing": 3,
+    "work": 0,
+    "personal": 0,
+    "spam": 1
+  },
+  "items": [
+    {
+      "id": "m1",
+      "from": "billing@supplier.com",
+      "subject": "Invoice overdue - produce order",
+      "category": "billing",
+      "confidence": 0.95,
+      "action": "needs_review_and_record"
+    },
+    {
+      "id": "m2",
+      "from": "owner@shop.com",
+      "subject": "Update inventory labels",
+      "category": "billing",
+      "confidence": 0.2,
+      "action": "needs_review_and_record"
+    },
+    {
+      "id": "m3",
+      "from": "friend@example.com",
+      "subject": "Family lunch",
+      "category": "billing",
+      "confidence": 0.2,
+      "action": "needs_review_and_record"
+    },
+    {
+      "id": "m4",
+      "from": "promo@scam-now.biz",
+      "subject": "You won a prize",
+      "category": "spam",
+      "confidence": 0.95,
+      "action": "ignore_or_block"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "global_daily_cost_cap_usd": 25,
+  "tenants": {
+    "tenant-default": {
+      "daily_cost_cap_usd": 10,
+      "monthly_cost_cap_usd": 150
+    }
+  },
+  "agents": {},
+  "updated_at": "2026-02-15T23:15:03.782Z"
+}

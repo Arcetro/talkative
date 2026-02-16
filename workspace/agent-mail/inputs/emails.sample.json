@@ -1,0 +1,26 @@
+[
+  {
+    "id": "m1",
+    "from": "billing@supplier.com",
+    "subject": "Invoice overdue - produce order",
+    "body": "Please pay invoice #331 this week."
+  },
+  {
+    "id": "m2",
+    "from": "owner@shop.com",
+    "subject": "Update inventory labels",
+    "body": "Please update apple and tomato prices this morning."
+  },
+  {
+    "id": "m3",
+    "from": "friend@example.com",
+    "subject": "Family lunch",
+    "body": "Are you free this Sunday for lunch?"
+  },
+  {
+    "id": "m4",
+    "from": "promo@scam-now.biz",
+    "subject": "You won a prize",
+    "body": "Click this urgent link to claim money now."
+  }
+]
