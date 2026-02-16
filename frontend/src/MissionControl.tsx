@@ -2,14 +2,16 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   attachSkill,
   createAgent,
+  decideApproval,
   getAgentEvents,
   getAgentSkills,
+  getApprovals,
   listAgents,
   sendAgentMessage,
   startAgent,
   stopAgent
 } from "./api";
-import { AgentEvent, AgentRecord, AgentSkill } from "./types";
+import { AgentEvent, AgentRecord, AgentSkill, ApprovalRequest } from "./types";
 
 const TEMPLATE_OPTIONS = ["mail-triage", "git-watcher", "monthly-bookkeeping"] as const;
 const SKILL_OPTIONS = ["mail-triage", "git-watcher", "monthly-bookkeeping"] as const;
@@ -19,6 +21,7 @@ export default function MissionControl() {
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [skills, setSkills] = useState<AgentSkill[]>([]);
   const [events, setEvents] = useState<AgentEvent[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [status, setStatus] = useState("Mission Control ready");
   const [lastPatchInfo, setLastPatchInfo] = useState<string>("");
   const [chatInput, setChatInput] = useState("");
@@ -41,9 +44,20 @@ export default function MissionControl() {
   }
 
   async function refreshAgentDetails(agentId: string): Promise<void> {
-    const [skillsPayload, eventsPayload] = await Promise.all([getAgentSkills(agentId), getAgentEvents(agentId, 80)]);
+    const selected = agents.find((agent) => agent.id === agentId);
+    const [skillsPayload, eventsPayload, approvalsPayload] = await Promise.all([
+      getAgentSkills(agentId),
+      getAgentEvents(agentId, 80),
+      getApprovals({
+        tenant_id: selected?.tenant_id ?? "tenant-default",
+        agent_id: selected?.agent_id ?? agentId,
+        status: "pending",
+        limit: 20
+      })
+    ]);
     setSkills(skillsPayload.skills);
     setEvents(eventsPayload.events);
+    setApprovals(approvalsPayload.approvals);
   }
 
   useEffect(() => {
@@ -123,6 +137,21 @@ export default function MissionControl() {
       await refreshAgentDetails(selectedAgentId);
     } catch (error) {
       setStatus(`Message failed: ${(error as Error).message}`);
+    }
+  }
+
+  async function onDecision(approvalId: string, decision: "approved" | "rejected") {
+    if (!selectedAgent) return;
+    try {
+      await decideApproval({
+        id: approvalId,
+        operator_id: "monotributistar",
+        decision
+      });
+      setStatus(`Approval ${approvalId} ${decision}`);
+      await refreshAgentDetails(selectedAgent.id);
+    } catch (error) {
+      setStatus(`Decision failed: ${(error as Error).message}`);
     }
   }
 
@@ -246,6 +275,24 @@ export default function MissionControl() {
             ))}
             {events.length === 0 && <p>No events yet.</p>}
           </div>
+        </div>
+
+        <div className="card">
+          <h2>Pending Approvals</h2>
+          {approvals.length === 0 && <p>No pending approvals.</p>}
+          {approvals.map((approval) => (
+            <div key={approval.id} className="event-row">
+              <strong>{approval.id}</strong>
+              <span>{approval.reason}</span>
+              <span className="muted">run: {approval.run_id}</span>
+              <div className="button-row">
+                <button onClick={() => onDecision(approval.id, "approved")}>Approve</button>
+                <button className="secondary" onClick={() => onDecision(approval.id, "rejected")}>
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
 
         <p className="status">{status}</p>

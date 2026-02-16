@@ -152,3 +152,16 @@ export interface RouterUsageRecord {
   status: "ok" | "error";
   created_at: string;
 }
+
+export interface ApprovalRequest {
+  id: string;
+  tenant_id: string;
+  agent_id: string;
+  run_id: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  requested_at: string;
+  decided_at?: string;
+  decided_by?: string;
+  note?: string;
+}

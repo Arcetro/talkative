@@ -88,6 +88,18 @@ Usage records include:
 - `POST /orchestrator/runs/:run_id/resume`
 - `POST /orchestrator/runs/:run_id/cancel`
 
+### Prompt Registry APIs
+
+- `GET /prompts?tenant_id=&agent_id=`
+- `POST /prompts`
+- `POST /prompts/activate`
+
+### Human Approval APIs (HITL)
+
+- `GET /approvals?tenant_id=&agent_id=&status=&limit=`
+- `POST /approvals`
+- `POST /approvals/:id/decision`
+
 ### Channel APIs (separated ingress)
 
 - External client channel:
@@ -270,4 +282,12 @@ For local mode, provisioning writes status at:
 All fleet objects, router usage rows, and agent events include:
 - `tenant_id`
 - `agent_id`
+
+## Tool Output Contract
+
+All tool executions now emit a normalized payload:
+- `ok`
+- `error` (when failed)
+- `artifacts`
+- `metrics` (`duration_ms`, `exit_code`)
 # talkative

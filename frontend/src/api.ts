@@ -1,4 +1,5 @@
 import {
+  ApprovalRequest,
   AgentEvent,
   AgentMessageResponse,
   AgentRecord,
@@ -169,4 +170,38 @@ export async function getRouterMetrics(): Promise<{
 }> {
   const response = await fetch(`${API_BASE}/router/metrics`);
   return parseOrThrow(response, "Failed to fetch router metrics");
+}
+
+export async function getApprovals(params: {
+  tenant_id?: string;
+  agent_id?: string;
+  status?: "pending" | "approved" | "rejected";
+  limit?: number;
+}): Promise<{ approvals: ApprovalRequest[] }> {
+  const query = new URLSearchParams();
+  if (params.tenant_id) query.set("tenant_id", params.tenant_id);
+  if (params.agent_id) query.set("agent_id", params.agent_id);
+  if (params.status) query.set("status", params.status);
+  if (params.limit) query.set("limit", String(params.limit));
+
+  const response = await fetch(`${API_BASE}/approvals?${query.toString()}`);
+  return parseOrThrow<{ approvals: ApprovalRequest[] }>(response, "Failed to fetch approvals");
+}
+
+export async function decideApproval(input: {
+  id: string;
+  operator_id: string;
+  decision: "approved" | "rejected";
+  note?: string;
+}): Promise<ApprovalRequest> {
+  const response = await fetch(`${API_BASE}/approvals/${input.id}/decision`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      operator_id: input.operator_id,
+      decision: input.decision,
+      note: input.note
+    })
+  });
+  return parseOrThrow<ApprovalRequest>(response, "Failed to decide approval");
 }

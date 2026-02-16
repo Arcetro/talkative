@@ -1,14 +1,17 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { nanoid } from "nanoid";
+import { createApproval } from "../approval/store.js";
 import { mirrorAgentEvent } from "../orchestrator/service.js";
+import { buildDeterministicContext } from "../prompt/contextBuilder.js";
+import { createPromptVersion, getActivePrompt } from "../prompt/store.js";
 import { interpretConversation } from "../services/interpreter.js";
 import { logRouterUsage } from "../router/service.js";
-import { createPatchFromInterpretation } from "./workflowPatch.js";
-import { appendAgentEvent } from "./eventStore.js";
+import { appendAgentEvent, readAgentEvents } from "./eventStore.js";
 import { loadAgentSkills } from "./skillLoader.js";
 import { runWorkspaceTool } from "./toolRunner.js";
 import { AgentEvent, AgentMessageResponse, AgentRecord, AgentSkill } from "./types.js";
+import { createPatchFromInterpretation } from "./workflowPatch.js";
 import { ensureInside, exists } from "./utils.js";
 
 interface AgentConfig {
@@ -60,6 +63,16 @@ export class AgentRunner {
     }
 
     this.skills = await loadAgentSkills(this.agent.workspace);
+
+    const activePrompt = await getActivePrompt(this.agent.tenant_id, this.agent.agent_id);
+    if (!activePrompt) {
+      await createPromptVersion({
+        tenant_id: this.agent.tenant_id,
+        agent_id: this.agent.agent_id,
+        template: "You are a business workflow subagent. Be concise, structured, and safe.",
+        activate: true
+      });
+    }
   }
 
   async refreshSkills(): Promise<AgentSkill[]> {
@@ -76,6 +89,7 @@ export class AgentRunner {
       message,
       payload
     });
+
     const run_id = typeof payload?.run_id === "string" ? payload.run_id : `session-${this.agent.agent_id}`;
     await mirrorAgentEvent({
       tenant_id: this.agent.tenant_id,
@@ -85,6 +99,7 @@ export class AgentRunner {
       message,
       payload
     });
+
     return saved;
   }
 
@@ -102,10 +117,7 @@ export class AgentRunner {
   }
 
   private scheduleHeartbeat(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-    }
-
+    if (this.timer) clearInterval(this.timer);
     const intervalMs = this.agent.heartbeatMinutes * 60_000;
     this.timer = setInterval(() => {
       void this.runHeartbeat("scheduled");
@@ -169,28 +181,26 @@ export class AgentRunner {
       try {
         emitted.push(await this.emit("TOOL_RUN_STARTED", `Tool run started: ${command}`));
         const result = await runWorkspaceTool(this.agent.workspace, command);
-        if (!result.ok) {
-          emitted.push(
-            await this.emit("TOOL_RUN_FINISHED", `Tool failed: ${command}`, {
-              stderr: result.stderr,
-              exitCode: result.exitCode,
-              ok: false
-            })
-          );
-        } else {
-          emitted.push(
-            await this.emit("TOOL_RUN_FINISHED", `Tool executed: ${command}`, {
-              stdout: result.stdout,
-              exitCode: result.exitCode,
-              ok: true
-            })
-          );
-          emitted.push(await this.emit("METRIC_RECORDED", "Tool metric recorded", { command, runMs: 0 }));
-        }
+        emitted.push(
+          await this.emit("TOOL_RUN_FINISHED", result.ok ? `Tool executed: ${command}` : `Tool failed: ${command}`, {
+            ok: result.ok,
+            error: result.error,
+            metrics: result.metrics,
+            artifacts: result.artifacts
+          })
+        );
+        emitted.push(
+          await this.emit("METRIC_RECORDED", "Tool metric recorded", {
+            command,
+            runMs: result.metrics.duration_ms,
+            exitCode: result.metrics.exit_code
+          })
+        );
       } catch (error) {
         emitted.push(
           await this.emit("TOOL_RUN_FINISHED", `Tool rejected: ${command}`, {
-            error: (error as Error).message
+            error: (error as Error).message,
+            ok: false
           })
         );
       }
@@ -203,6 +213,7 @@ export class AgentRunner {
     const startedAt = Date.now();
     const run_id = `run-${nanoid(8)}`;
     const events: AgentEvent[] = [];
+
     const now = new Date().toISOString();
     this.agent.lastMessageAt = now;
     this.agent.lastMessage = message;
@@ -211,13 +222,26 @@ export class AgentRunner {
 
     events.push(await this.emit("MESSAGE_RECEIVED", message, { run_id }));
 
+    const recent = await readAgentEvents(this.agent.id, 8);
+    const activePrompt = await getActivePrompt(this.agent.tenant_id, this.agent.agent_id);
+    const context = buildDeterministicContext({
+      promptTemplate: activePrompt?.template ?? "You are a business workflow subagent.",
+      userMessage: message,
+      skills: this.skills.map((s) => s.id),
+      recentEvents: recent.map((row) => ({ type: row.type, message: row.message })),
+      maxTokens: 700
+    });
+
     const interpretation = interpretConversation(message);
     events.push(
       await this.emit("INTERPRETATION_RESULT", "Interpretation generated", {
         run_id,
-        detectedTasks: interpretation.detectedTasks
+        detectedTasks: interpretation.detectedTasks,
+        context_tokens: context.token_estimate,
+        context_truncated: context.truncated
       })
     );
+
     const workflowPatch = createPatchFromInterpretation(interpretation, 0);
     events.push(
       await this.emit("WORKFLOW_PATCH_PROPOSED", "Workflow patch proposed from conversation", {
@@ -226,10 +250,24 @@ export class AgentRunner {
         operations: workflowPatch.operations.length
       })
     );
+
     const actions: AgentMessageResponse["actions"] = [];
     let reply = `Agent ${this.agent.name} interpreted ${interpretation.detectedTasks.length} task(s).`;
 
     const lower = message.toLowerCase();
+    const sensitive =
+      lower.includes("transfer") || lower.includes("wire") || lower.includes("refund") || lower.includes("delete");
+    if (sensitive) {
+      const approval = await createApproval({
+        tenant_id: this.agent.tenant_id,
+        agent_id: this.agent.agent_id,
+        run_id,
+        reason: `Sensitive action detected in message: ${message}`
+      });
+      actions.push({ type: "human_approval_required", data: { approval_id: approval.id, reason: approval.reason } });
+      reply += ` Human approval required (approval_id=${approval.id}).`;
+    }
+
     if (lower.includes("heartbeat") && (lower.includes("run") || lower.includes("now"))) {
       const heartbeatEvents = await this.runHeartbeat("manual");
       events.push(...heartbeatEvents);
@@ -244,18 +282,33 @@ export class AgentRunner {
       try {
         events.push(await this.emit("TOOL_RUN_STARTED", "Mail triage tool started", { run_id, command }));
         const result = await runWorkspaceTool(this.agent.workspace, command);
+
         if (result.ok) {
           actions.push({ type: "tool.executed", data: { command, output: "outputs/triage-result.json" } });
-          events.push(await this.emit("TOOL_RUN_FINISHED", "Mail triage skill executed", { run_id, command, ok: true }));
-          events.push(await this.emit("METRIC_RECORDED", "Mail triage metric recorded", { run_id, command, runMs: 0 }));
           reply += " Mail triage completed and wrote outputs/triage-result.json.";
         } else {
           actions.push({ type: "tool.failed", data: { command } });
-          events.push(
-            await this.emit("TOOL_RUN_FINISHED", "Mail triage skill failed", { run_id, stderr: result.stderr, ok: false })
-          );
           reply += " Mail triage failed.";
         }
+
+        events.push(
+          await this.emit("TOOL_RUN_FINISHED", result.ok ? "Mail triage skill executed" : "Mail triage skill failed", {
+            run_id,
+            command,
+            ok: result.ok,
+            error: result.error,
+            metrics: result.metrics,
+            artifacts: result.artifacts
+          })
+        );
+        events.push(
+          await this.emit("METRIC_RECORDED", "Mail triage metric recorded", {
+            run_id,
+            command,
+            runMs: result.metrics.duration_ms,
+            exitCode: result.metrics.exit_code
+          })
+        );
       } catch (error) {
         actions.push({ type: "tool.failed", data: { command } });
         events.push(
@@ -284,6 +337,7 @@ export class AgentRunner {
       actions,
       events
     };
+
     await logRouterUsage({
       tenant_id: this.agent.tenant_id,
       agent_id: this.agent.agent_id,
@@ -291,6 +345,7 @@ export class AgentRunner {
       latency_ms: Date.now() - startedAt,
       status: "ok"
     });
+
     return response;
   }
 

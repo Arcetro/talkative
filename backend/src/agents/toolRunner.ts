@@ -17,6 +17,9 @@ export interface ToolRunResult {
   stdout: string;
   stderr: string;
   exitCode: number | null;
+  artifacts: Array<{ type: "file" | "log"; path: string }>;
+  metrics: { duration_ms: number; exit_code: number | null };
+  error?: { code: string; message: string };
 }
 
 export async function runWorkspaceTool(workspaceDir: string, command: string): Promise<ToolRunResult> {
@@ -59,6 +62,7 @@ export async function runWorkspaceTool(workspaceDir: string, command: string): P
   }
 
   return new Promise((resolve) => {
+    const startedAt = Date.now();
     const child = spawn(process.execPath, runtimeArgs, {
       cwd: workspaceDir,
       stdio: ["ignore", "pipe", "pipe"]
@@ -76,12 +80,23 @@ export async function runWorkspaceTool(workspaceDir: string, command: string): P
     });
 
     child.on("close", (exitCode) => {
+      const duration = Date.now() - startedAt;
+      const outputPathIndex = args.findIndex((arg) => arg === "--output");
+      const artifacts: Array<{ type: "file" | "log"; path: string }> = [];
+      if (outputPathIndex >= 0 && args[outputPathIndex + 1]) {
+        artifacts.push({ type: "file", path: ensureInside(workspaceDir, args[outputPathIndex + 1]) });
+      }
+      if (stdout) artifacts.push({ type: "log", path: "stdout" });
+      if (stderr) artifacts.push({ type: "log", path: "stderr" });
       resolve({
         ok: exitCode === 0,
         command,
         stdout: stdout.trim(),
         stderr: stderr.trim(),
-        exitCode
+        exitCode,
+        artifacts,
+        metrics: { duration_ms: duration, exit_code: exitCode },
+        error: exitCode === 0 ? undefined : { code: "TOOL_EXIT_NON_ZERO", message: stderr.trim() || "Tool failed" }
       });
     });
   });
