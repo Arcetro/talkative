@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { writeSkillReport } from "../../../lib/skillReport.js";
 
 function argValue(flag: string): string | null {
   const i = process.argv.indexOf(flag);
@@ -42,8 +43,7 @@ function main() {
         .map((line) => ({ code: line.slice(0, 2).trim(), path: line.slice(3).trim() }))
     : [];
 
-  const report = {
-    generatedAt: new Date().toISOString(),
+  const data = {
     repoPath,
     isGitRepo: Boolean(branch || porcelain),
     branch: branch ?? "unknown",
@@ -51,9 +51,9 @@ function main() {
     changedFiles
   };
 
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, JSON.stringify(report, null, 2), "utf8");
-  console.log(`Wrote git status report to: ${outPath}`);
+  writeSkillReport(outPath, "git-watcher", data, {
+    metrics: { changedFileCount: changedFiles.length }
+  });
 }
 
 main();
