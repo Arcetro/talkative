@@ -3,7 +3,7 @@ import path from "node:path";
 import { nanoid } from "nanoid";
 import { createApproval } from "../approval/store.js";
 import { mirrorAgentEvent } from "../orchestrator/service.js";
-import { buildDeterministicContext } from "../prompt/contextBuilder.js";
+import { buildDeterministicContext, ContextEvent } from "../prompt/contextBuilder.js";
 import { createPromptVersion, getActivePrompt } from "../prompt/store.js";
 import { interpretConversation } from "../services/interpreter.js";
 import { logRouterUsage } from "../router/service.js";
@@ -228,7 +228,11 @@ export class AgentRunner {
       promptTemplate: activePrompt?.template ?? "You are a business workflow subagent.",
       userMessage: message,
       skills: this.skills.map((s) => s.id),
-      recentEvents: recent.map((row) => ({ type: row.type, message: row.message })),
+      recentEvents: recent.map((row): ContextEvent => ({
+        type: row.type,
+        message: row.message,
+        ...(row.payload ? { payload: row.payload } : {})
+      })),
       maxTokens: 700
     });
 
