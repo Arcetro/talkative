@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import { ensureInside, tokenizeCommand } from "./utils.js";
 
@@ -20,6 +21,47 @@ export interface ToolRunResult {
   artifacts: Array<{ type: "file" | "log"; path: string }>;
   metrics: { duration_ms: number; exit_code: number | null };
   error?: { code: string; message: string };
+  /** Populated when the output file is a valid SkillReportEnvelope. */
+  skillReport?: {
+    skillName: string;
+    ok: boolean;
+    generatedAt: string;
+    metrics?: Record<string, unknown>;
+    error?: { code: string; message: string };
+  };
+}
+
+/**
+ * Attempt to read and parse an output file as a SkillReportEnvelope.
+ * Returns extracted metadata on success, undefined on any failure.
+ * This is intentionally lenient — old scripts that don't use the
+ * envelope simply return undefined and everything works as before.
+ */
+async function tryParseSkillReport(
+  filePath: string
+): Promise<ToolRunResult["skillReport"] | undefined> {
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof parsed.skillName === "string" &&
+      typeof parsed.ok === "boolean" &&
+      typeof parsed.generatedAt === "string"
+    ) {
+      return {
+        skillName: parsed.skillName,
+        ok: parsed.ok,
+        generatedAt: parsed.generatedAt,
+        ...(parsed.metrics ? { metrics: parsed.metrics } : {}),
+        ...(parsed.error ? { error: parsed.error } : {})
+      };
+    }
+  } catch {
+    // File missing, not JSON, or not an envelope — all fine.
+  }
+  return undefined;
 }
 
 export async function runWorkspaceTool(workspaceDir: string, command: string): Promise<ToolRunResult> {
@@ -83,21 +125,45 @@ export async function runWorkspaceTool(workspaceDir: string, command: string): P
       const duration = Date.now() - startedAt;
       const outputPathIndex = args.findIndex((arg) => arg === "--output");
       const artifacts: Array<{ type: "file" | "log"; path: string }> = [];
+      let outputFilePath: string | undefined;
       if (outputPathIndex >= 0 && args[outputPathIndex + 1]) {
-        artifacts.push({ type: "file", path: ensureInside(workspaceDir, args[outputPathIndex + 1]) });
+        outputFilePath = ensureInside(workspaceDir, args[outputPathIndex + 1]);
+        artifacts.push({ type: "file", path: outputFilePath });
       }
       if (stdout) artifacts.push({ type: "log", path: "stdout" });
       if (stderr) artifacts.push({ type: "log", path: "stderr" });
-      resolve({
-        ok: exitCode === 0,
-        command,
-        stdout: stdout.trim(),
-        stderr: stderr.trim(),
-        exitCode,
-        artifacts,
-        metrics: { duration_ms: duration, exit_code: exitCode },
-        error: exitCode === 0 ? undefined : { code: "TOOL_EXIT_NON_ZERO", message: stderr.trim() || "Tool failed" }
-      });
+
+      const buildResult = async (): Promise<ToolRunResult> => {
+        const skillReport = outputFilePath
+          ? await tryParseSkillReport(outputFilePath)
+          : undefined;
+
+        // If the process exited 0 but the skill self-reported failure,
+        // trust the skill's assessment.
+        const effectiveOk = skillReport
+          ? skillReport.ok && exitCode === 0
+          : exitCode === 0;
+
+        const effectiveError = !effectiveOk
+          ? skillReport?.error ?? (exitCode !== 0
+            ? { code: "TOOL_EXIT_NON_ZERO", message: stderr.trim() || "Tool failed" }
+            : { code: "SKILL_REPORTED_FAILURE", message: "Skill reported ok:false" })
+          : undefined;
+
+        return {
+          ok: effectiveOk,
+          command,
+          stdout: stdout.trim(),
+          stderr: stderr.trim(),
+          exitCode,
+          artifacts,
+          metrics: { duration_ms: duration, exit_code: exitCode },
+          error: effectiveError,
+          skillReport
+        };
+      };
+
+      buildResult().then(resolve);
     });
   });
 }
