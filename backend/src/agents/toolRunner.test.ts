@@ -49,3 +49,83 @@ test("tool runner blocks path escape outside workspace", async () => {
 
   await assert.rejects(async () => runWorkspaceTool(workspace, command));
 });
+
+test("tool runner parses SkillReportEnvelope from output file", async () => {
+  const workspace = await createWorkspace();
+
+  // Script that writes a valid SkillReportEnvelope
+  await fs.writeFile(
+    path.join(workspace, "scripts", "envelope.js"),
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      'const args = process.argv;',
+      'const out = args[args.indexOf("--output") + 1];',
+      'fs.mkdirSync(path.dirname(out), { recursive: true });',
+      'const report = {',
+      '  ok: true,',
+      '  generatedAt: new Date().toISOString(),',
+      '  skillName: "test-skill",',
+      '  data: { items: [1, 2, 3] },',
+      '  metrics: { itemCount: 3 }',
+      '};',
+      'fs.writeFileSync(out, JSON.stringify(report), "utf8");',
+      'console.log("done");'
+    ].join("\n"),
+    "utf8"
+  );
+
+  const result = await runWorkspaceTool(workspace, "node scripts/envelope.js --output outputs/report.json");
+
+  assert.equal(result.ok, true);
+  assert.ok(result.skillReport);
+  assert.equal(result.skillReport.skillName, "test-skill");
+  assert.equal(result.skillReport.ok, true);
+  assert.equal(result.skillReport.metrics?.itemCount, 3);
+});
+
+test("tool runner detects skill-reported failure even with exit code 0", async () => {
+  const workspace = await createWorkspace();
+
+  // Script exits 0 but writes ok:false in envelope
+  await fs.writeFile(
+    path.join(workspace, "scripts", "soft-fail.js"),
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      'const args = process.argv;',
+      'const out = args[args.indexOf("--output") + 1];',
+      'fs.mkdirSync(path.dirname(out), { recursive: true });',
+      'const report = {',
+      '  ok: false,',
+      '  generatedAt: new Date().toISOString(),',
+      '  skillName: "failing-skill",',
+      '  data: null,',
+      '  error: { code: "PARSE_ERROR", message: "Invalid input format" }',
+      '};',
+      'fs.writeFileSync(out, JSON.stringify(report), "utf8");',
+      'console.log("wrote failure report");'
+    ].join("\n"),
+    "utf8"
+  );
+
+  const result = await runWorkspaceTool(workspace, "node scripts/soft-fail.js --output outputs/fail.json");
+
+  // Process exited 0, but skill said ok:false → ToolRunner trusts the skill
+  assert.equal(result.ok, false);
+  assert.equal(result.exitCode, 0);
+  assert.ok(result.skillReport);
+  assert.equal(result.skillReport.ok, false);
+  assert.equal(result.error?.code, "PARSE_ERROR");
+  assert.equal(result.error?.message, "Invalid input format");
+});
+
+test("tool runner ignores non-envelope output gracefully", async () => {
+  const workspace = await createWorkspace();
+
+  // Original ok.js writes { ok: true } — not an envelope
+  const result = await runWorkspaceTool(workspace, "node scripts/ok.js --output outputs/plain.json");
+
+  assert.equal(result.ok, true);
+  assert.equal(result.skillReport, undefined);
+});
