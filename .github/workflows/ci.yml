@@ -45,4 +45,6 @@ jobs:
         run: npm ci
 
       - name: Build backend and frontend
-        run: npm run build
+        run: |
+          npm run build --workspace backend
+          npm run build --workspace frontend
