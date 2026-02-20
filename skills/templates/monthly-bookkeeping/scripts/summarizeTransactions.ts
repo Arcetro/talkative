@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { writeSkillReport } from "../../../lib/skillReport.js";
 
 type Tx = {
   date: string;
@@ -55,8 +56,7 @@ function main() {
     else expenseTotal += Math.abs(tx.amount);
   });
 
-  const report = {
-    generatedAt: new Date().toISOString(),
+  const data = {
     transactions: txs.length,
     totalsByCategory,
     incomeTotal,
@@ -64,9 +64,9 @@ function main() {
     net: incomeTotal - expenseTotal
   };
 
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), "utf8");
-  console.log(`Wrote bookkeeping report to: ${outputPath}`);
+  writeSkillReport(outputPath, "monthly-bookkeeping", data, {
+    metrics: { transactionCount: txs.length }
+  });
 }
 
 main();

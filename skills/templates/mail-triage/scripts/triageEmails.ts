@@ -6,6 +6,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { writeSkillReport } from "../../../lib/skillReport.js";
 
 type Email = {
   id: string;
@@ -107,14 +108,9 @@ function main() {
     { billing: 0, work: 0, personal: 0, spam: 0 }
   );
 
-  const report = {
-    generatedAt: new Date().toISOString(),
-    totals,
-    items,
-  };
-
-  fs.writeFileSync(outPath, JSON.stringify(report, null, 2), "utf-8");
-  console.log(`Wrote triage report to: ${outPath}`);
+  writeSkillReport(outPath, "mail-triage", { totals, items }, {
+    metrics: { emailCount: emails.length }
+  });
 }
 
 main();
