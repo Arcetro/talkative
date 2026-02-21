@@ -12,6 +12,15 @@
     "dev:backend": "pnpm --filter workflow-agent-backend dev",
     "dev:frontend": "pnpm --filter workflow-agent-frontend dev",
     "build": "pnpm --filter workflow-agent-backend build && pnpm --filter workflow-agent-frontend build",
-    "test:backend": "npm run test --workspace backend"
+    "test:backend": "npm run test --workspace backend",
+    "lint": "npm run lint --workspace backend && npm run lint --workspace frontend",
+    "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace frontend"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.3",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
+    "eslint": "^9.39.3",
+    "eslint-plugin-react-hooks": "^7.0.1"
   }
 }

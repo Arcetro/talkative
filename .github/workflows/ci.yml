@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  backend-tests:
-    name: Backend Tests
+  quality:
+    name: Lint, Typecheck, Test, Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,25 +24,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run backend tests
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test backend
         run: npm run test:backend
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build backend and frontend
-        run: |
-          npm run build --workspace backend
-          npm run build --workspace frontend
+      - name: Build
+        run: npm run build
