@@ -14,7 +14,8 @@
     "test:e2e": "node --import tsx --test src/e2e/**/*.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:db:push": "prisma db push",
-    "prisma:migrate:dev": "prisma migrate dev"
+    "prisma:migrate:dev": "prisma migrate dev",
+    "migrate:fs-to-db": "node --import tsx src/scripts/migrateFsToDb.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

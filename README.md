@@ -232,6 +232,12 @@ npm run prisma:db:push --workspace backend
 npm run dev:backend
 ```
 
+Optional one-shot migration from filesystem data to DB:
+```bash
+DATABASE_URL=postgresql://talkative:talkative@localhost:5432/talkative?schema=public \
+npm run migrate:fs-to-db --workspace backend -- --report backend/data/migrations/fs-to-db-report.json
+```
+
 ## Security Baseline (JWT + RBAC)
 
 Backend now enforces:
