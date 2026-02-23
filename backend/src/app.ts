@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
 import { agentHub } from "./agents/agentHub.js";
+import { authenticateRequest, authorizeRoleForRequest } from "./auth/middleware.js";
+import { validateSecurityConfig } from "./auth/config.js";
 import { agentRouter } from "./routes/agentRoutes.js";
 import { approvalRouter } from "./routes/approvalRoutes.js";
 import { channelRouter } from "./routes/channelRoutes.js";
@@ -13,6 +15,8 @@ import { workflowRouter } from "./routes/workflowRoutes.js";
 import { subscribeEvents } from "./services/eventBus.js";
 
 export async function createApp() {
+  validateSecurityConfig();
+
   const app = express();
 
   app.use(cors());
@@ -21,6 +25,9 @@ export async function createApp() {
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "workflow-agent-backend" });
   });
+
+  app.use(authenticateRequest);
+  app.use(authorizeRoleForRequest);
 
   app.use(workflowRouter);
   app.use(conversationRouter);

@@ -10,6 +10,7 @@ A local proof-of-concept that combines:
 
 - Detailed architecture summary and diagrams:
   - `/Users/monotributistar/SOURCES/Talkative /docs/architecture.md`
+  - `/Users/monotributistar/SOURCES/Talkative /docs/release-runbook.md`
 
 ## Stack
 
@@ -200,12 +201,43 @@ npm run dev:frontend
 4. Open:
 - [http://localhost:5173](http://localhost:5173)
 
+## Security Baseline (JWT + RBAC)
+
+Backend now enforces:
+- JWT auth via `Authorization: Bearer <token>`
+- RBAC roles: `admin`, `operator`, `viewer`
+- startup secret validation (`AUTH_JWT_SECRET`, minimum 32 chars)
+
+Required env (backend):
+
+```bash
+export AUTH_JWT_SECRET="replace-with-a-strong-random-secret-at-least-32-chars"
+```
+
+Optional local-only bypass (never use in production):
+
+```bash
+export AUTH_DISABLED=true
+```
+
+Example local token:
+
+```bash
+node -e "console.log(require('jsonwebtoken').sign({sub:'local-admin',role:'admin',tenant_id:'tenant-default'}, process.env.AUTH_JWT_SECRET, {algorithm:'HS256',expiresIn:'1h'}))"
+```
+
 ## Tests (TDD baseline)
 
 Run backend tests:
 
 ```bash
 npm run test:backend
+```
+
+Run only end-to-end backend loop tests:
+
+```bash
+npm run test:e2e --workspace backend
 ```
 
 Covers:
