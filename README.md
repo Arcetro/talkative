@@ -202,6 +202,36 @@ npm run dev:frontend
 4. Open:
 - [http://localhost:5173](http://localhost:5173)
 
+## PostgreSQL + Prisma (DB mode)
+
+Default persistence is filesystem (`PERSISTENCE_DRIVER=fs`).
+
+To run with PostgreSQL:
+
+1. Start local Postgres:
+```bash
+docker compose up -d postgres
+```
+
+2. Configure backend env (example):
+```bash
+cp backend/.env.example backend/.env
+```
+Set:
+- `PERSISTENCE_DRIVER=db`
+- `DATABASE_URL=postgresql://talkative:talkative@localhost:5432/talkative?schema=public`
+
+3. Generate Prisma client and push schema:
+```bash
+npm run prisma:generate --workspace backend
+npm run prisma:db:push --workspace backend
+```
+
+4. Run backend as usual:
+```bash
+npm run dev:backend
+```
+
 ## Security Baseline (JWT + RBAC)
 
 Backend now enforces:

@@ -11,9 +11,13 @@
     "test": "node --import tsx --test src/*.test.ts src/**/*.test.ts",
     "lint": "eslint src --ext .ts --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:e2e": "node --import tsx --test src/e2e/**/*.test.ts"
+    "test:e2e": "node --import tsx --test src/e2e/**/*.test.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:db:push": "prisma db push",
+    "prisma:migrate:dev": "prisma migrate dev"
   },
   "dependencies": {
+    "@prisma/client": "^6.4.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
@@ -25,6 +29,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.13.8",
     "@types/supertest": "^6.0.3",
+    "prisma": "^6.4.1",
     "supertest": "^7.2.2",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"

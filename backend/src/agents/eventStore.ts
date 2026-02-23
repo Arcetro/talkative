@@ -1,6 +1,9 @@
 import { nanoid } from "nanoid";
+import type { Prisma } from "@prisma/client";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { getPrismaClient } from "../persistence/prisma.js";
+import { isDatabasePersistenceEnabled } from "../persistence/config.js";
 import { publishEvent } from "../services/eventBus.js";
 import { recordAgentEvent } from "../observability/metrics.js";
 import { AGENTS_DATA_DIR } from "./paths.js";
@@ -17,14 +20,31 @@ function eventFile(agentId: string): string {
 }
 
 export async function appendAgentEvent(input: Omit<AgentEvent, "id" | "timestamp"> & { timestamp?: string }): Promise<AgentEvent> {
-  const dir = await ensureDir(input.agentId);
   const event: AgentEvent = {
     id: nanoid(10),
     timestamp: input.timestamp ?? new Date().toISOString(),
     ...input
   };
 
-  await fs.appendFile(path.join(dir, "events.jsonl"), `${JSON.stringify(event)}\n`, "utf8");
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    await prisma.agentEvent.create({
+      data: {
+        id: event.id,
+        tenantId: event.tenant_id,
+        agentId: event.agent_id,
+        agentRef: event.agentId,
+        type: event.type,
+        message: event.message,
+        payload: event.payload ? (event.payload as Prisma.InputJsonValue) : undefined,
+        timestamp: new Date(event.timestamp)
+      }
+    });
+  } else {
+    const dir = await ensureDir(input.agentId);
+    await fs.appendFile(path.join(dir, "events.jsonl"), `${JSON.stringify(event)}\n`, "utf8");
+  }
+
   recordAgentEvent(event.type, event.payload);
   publishEvent({
     type: "workflow.updated",
@@ -42,6 +62,29 @@ export async function appendAgentEvent(input: Omit<AgentEvent, "id" | "timestamp
 }
 
 export async function readAgentEvents(agentId: string, limit = 50): Promise<AgentEvent[]> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    const rows = await prisma.agentEvent.findMany({
+      where: { agentRef: agentId },
+      orderBy: { timestamp: "desc" },
+      take: limit
+    });
+    return rows
+      .map(
+        (row): AgentEvent => ({
+          id: row.id,
+          tenant_id: row.tenantId,
+          agent_id: row.agentId,
+          agentId: row.agentRef,
+          type: row.type as AgentEvent["type"],
+          message: row.message,
+          payload: (row.payload as Record<string, unknown> | null) ?? undefined,
+          timestamp: row.timestamp.toISOString()
+        })
+      )
+      .reverse();
+  }
+
   const filePath = eventFile(agentId);
   try {
     const content = await fs.readFile(filePath, "utf8");
@@ -56,6 +99,11 @@ export async function readAgentEvents(agentId: string, limit = 50): Promise<Agen
  * Count total events stored for an agent without parsing them.
  */
 export async function countAgentEvents(agentId: string): Promise<number> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    return prisma.agentEvent.count({ where: { agentRef: agentId } });
+  }
+
   const filePath = eventFile(agentId);
   try {
     const content = await fs.readFile(filePath, "utf8");
@@ -74,6 +122,20 @@ export async function countAgentEvents(agentId: string): Promise<number> {
  * This is safe to call at any time — it atomically rewrites the file.
  */
 export async function pruneAgentEvents(agentId: string, keep: number): Promise<number> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    const rows = await prisma.agentEvent.findMany({
+      where: { agentRef: agentId },
+      orderBy: { timestamp: "desc" },
+      skip: keep,
+      select: { id: true }
+    });
+    if (!rows.length) return 0;
+    const ids = rows.map((row) => row.id);
+    await prisma.agentEvent.deleteMany({ where: { id: { in: ids } } });
+    return ids.length;
+  }
+
   const filePath = eventFile(agentId);
   try {
     const content = await fs.readFile(filePath, "utf8");

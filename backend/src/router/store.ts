@@ -3,6 +3,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { DATA_ROOT } from "../agents/paths.js";
 import { recordRouterUsage } from "../observability/metrics.js";
+import { getPrismaClient } from "../persistence/prisma.js";
+import { isDatabasePersistenceEnabled } from "../persistence/config.js";
 import { BudgetCaps, RouterRuleSet, RouterUsageRecord } from "./types.js";
 
 const ROUTER_DIR = path.join(DATA_ROOT, "llm-router");
@@ -50,12 +52,53 @@ async function ensureFiles(): Promise<void> {
 }
 
 export async function getRules(): Promise<RouterRuleSet> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    const row = await prisma.routerRule.findUnique({ where: { id: "active" } });
+    if (!row) {
+      await prisma.routerRule.create({
+        data: {
+          id: "active",
+          defaultModel: DEFAULT_RULES.default_model,
+          routes: DEFAULT_RULES.routes,
+          updatedAt: new Date()
+        }
+      });
+      return DEFAULT_RULES;
+    }
+    return {
+      default_model: row.defaultModel,
+      routes: row.routes as RouterRuleSet["routes"],
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
   await ensureFiles();
   const raw = await fs.readFile(RULES_FILE, "utf8");
   return JSON.parse(raw) as RouterRuleSet;
 }
 
 export async function putRules(rules: RouterRuleSet): Promise<RouterRuleSet> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    const updatedAt = new Date();
+    await prisma.routerRule.upsert({
+      where: { id: "active" },
+      create: {
+        id: "active",
+        defaultModel: rules.default_model,
+        routes: rules.routes,
+        updatedAt
+      },
+      update: {
+        defaultModel: rules.default_model,
+        routes: rules.routes,
+        updatedAt
+      }
+    });
+    return { ...rules, updated_at: updatedAt.toISOString() };
+  }
+
   await ensureFiles();
   const next: RouterRuleSet = { ...rules, updated_at: new Date().toISOString() };
   await fs.writeFile(RULES_FILE, JSON.stringify(next, null, 2), "utf8");
@@ -63,12 +106,57 @@ export async function putRules(rules: RouterRuleSet): Promise<RouterRuleSet> {
 }
 
 export async function getBudgets(): Promise<BudgetCaps> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    const row = await prisma.routerBudget.findUnique({ where: { id: "active" } });
+    if (!row) {
+      await prisma.routerBudget.create({
+        data: {
+          id: "active",
+          globalDailyCostCapUsd: DEFAULT_BUDGETS.global_daily_cost_cap_usd,
+          tenants: DEFAULT_BUDGETS.tenants,
+          agents: DEFAULT_BUDGETS.agents,
+          updatedAt: new Date()
+        }
+      });
+      return DEFAULT_BUDGETS;
+    }
+    return {
+      global_daily_cost_cap_usd: row.globalDailyCostCapUsd,
+      tenants: row.tenants as BudgetCaps["tenants"],
+      agents: row.agents as BudgetCaps["agents"],
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
   await ensureFiles();
   const raw = await fs.readFile(BUDGETS_FILE, "utf8");
   return JSON.parse(raw) as BudgetCaps;
 }
 
 export async function putBudgets(budgets: BudgetCaps): Promise<BudgetCaps> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    const updatedAt = new Date();
+    await prisma.routerBudget.upsert({
+      where: { id: "active" },
+      create: {
+        id: "active",
+        globalDailyCostCapUsd: budgets.global_daily_cost_cap_usd,
+        tenants: budgets.tenants,
+        agents: budgets.agents,
+        updatedAt
+      },
+      update: {
+        globalDailyCostCapUsd: budgets.global_daily_cost_cap_usd,
+        tenants: budgets.tenants,
+        agents: budgets.agents,
+        updatedAt
+      }
+    });
+    return { ...budgets, updated_at: updatedAt.toISOString() };
+  }
+
   await ensureFiles();
   const next: BudgetCaps = { ...budgets, updated_at: new Date().toISOString() };
   await fs.writeFile(BUDGETS_FILE, JSON.stringify(next, null, 2), "utf8");
@@ -76,6 +164,37 @@ export async function putBudgets(budgets: BudgetCaps): Promise<BudgetCaps> {
 }
 
 export async function appendUsage(input: Omit<RouterUsageRecord, "id" | "created_at">): Promise<RouterUsageRecord> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    const createdAt = new Date();
+    const id = nanoid(12);
+    await prisma.routerUsage.create({
+      data: {
+        id,
+        tenantId: input.tenant_id,
+        agentId: input.agent_id,
+        model: input.model,
+        tokens: input.tokens,
+        cost: input.cost,
+        latencyMs: input.latency_ms,
+        status: input.status,
+        createdAt
+      }
+    });
+    recordRouterUsage({ tokens: input.tokens, cost: input.cost });
+    return {
+      id,
+      tenant_id: input.tenant_id,
+      agent_id: input.agent_id,
+      model: input.model,
+      tokens: input.tokens,
+      cost: input.cost,
+      latency_ms: input.latency_ms,
+      status: input.status,
+      created_at: createdAt.toISOString()
+    };
+  }
+
   await ensureFiles();
   const record: RouterUsageRecord = {
     id: nanoid(12),
@@ -94,6 +213,37 @@ export async function getUsage(filter: {
   from?: string;
   to?: string;
 }): Promise<RouterUsageRecord[]> {
+  if (isDatabasePersistenceEnabled()) {
+    const prisma = getPrismaClient();
+    const rows = await prisma.routerUsage.findMany({
+      where: {
+        tenantId: filter.tenant_id,
+        agentId: filter.agent_id,
+        createdAt: {
+          gte: filter.from ? new Date(filter.from) : undefined,
+          lte: filter.to ? new Date(filter.to) : undefined
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: filter.limit ?? 100
+    });
+    return rows
+      .map(
+        (row): RouterUsageRecord => ({
+          id: row.id,
+          tenant_id: row.tenantId,
+          agent_id: row.agentId,
+          model: row.model,
+          tokens: row.tokens,
+          cost: row.cost,
+          latency_ms: row.latencyMs,
+          status: row.status as RouterUsageRecord["status"],
+          created_at: row.createdAt.toISOString()
+        })
+      )
+      .reverse();
+  }
+
   await ensureFiles();
   const raw = await fs.readFile(USAGE_FILE, "utf8");
   const all = raw
