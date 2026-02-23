@@ -238,6 +238,17 @@ DATABASE_URL=postgresql://talkative:talkative@localhost:5432/talkative?schema=pu
 npm run migrate:fs-to-db --workspace backend -- --report backend/data/migrations/fs-to-db-report.json
 ```
 
+## Docker Compose (full stack)
+
+Start full local stack (Postgres + backend + frontend):
+```bash
+docker compose up --build
+```
+
+Endpoints:
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend health: [http://localhost:4000/health](http://localhost:4000/health)
+
 ## Security Baseline (JWT + RBAC)
 
 Backend now enforces:
