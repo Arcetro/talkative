@@ -10,6 +10,7 @@ A local proof-of-concept that combines:
 
 - Detailed architecture summary and diagrams:
   - `/Users/monotributistar/SOURCES/Talkative /docs/architecture.md`
+  - `/Users/monotributistar/SOURCES/Talkative /docs/release-runbook.md`
 
 ## Stack
 
