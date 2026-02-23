@@ -226,6 +226,20 @@ Example local token:
 node -e "console.log(require('jsonwebtoken').sign({sub:'local-admin',role:'admin',tenant_id:'tenant-default'}, process.env.AUTH_JWT_SECRET, {algorithm:'HS256',expiresIn:'1h'}))"
 ```
 
+## Structured Logging
+
+Backend emits JSON logs with request context fields:
+- `request_id`
+- `tenant_id`
+- `agent_id`
+- `run_id`
+
+You can provide correlation headers in incoming requests:
+- `x-request-id`
+- `x-tenant-id`
+- `x-agent-id`
+- `x-run-id`
+
 ## Tests (TDD baseline)
 
 Run backend tests:
