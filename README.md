@@ -10,6 +10,7 @@ A local proof-of-concept that combines:
 
 - Detailed architecture summary and diagrams:
   - `/Users/monotributistar/SOURCES/Talkative /docs/architecture.md`
+  - `/Users/monotributistar/SOURCES/Talkative /docs/metrics.md`
   - `/Users/monotributistar/SOURCES/Talkative /docs/release-runbook.md`
 
 ## Stack
@@ -239,6 +240,17 @@ You can provide correlation headers in incoming requests:
 - `x-tenant-id`
 - `x-agent-id`
 - `x-run-id`
+
+## Prometheus Metrics
+
+- Metrics endpoint: `GET /metrics`
+- Exposes counters for:
+  - runs
+  - tool calls
+  - tool failures
+  - router tokens
+  - router cost (USD)
+- Exposes HTTP latency histogram for key endpoints by `method` and `endpoint` labels.
 
 ## Tests (TDD baseline)
 

@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { publishEvent } from "../services/eventBus.js";
+import { recordAgentEvent } from "../observability/metrics.js";
 import { AGENTS_DATA_DIR } from "./paths.js";
 import { AgentEvent } from "./types.js";
 
@@ -24,6 +25,7 @@ export async function appendAgentEvent(input: Omit<AgentEvent, "id" | "timestamp
   };
 
   await fs.appendFile(path.join(dir, "events.jsonl"), `${JSON.stringify(event)}\n`, "utf8");
+  recordAgentEvent(event.type, event.payload);
   publishEvent({
     type: "workflow.updated",
     timestamp: event.timestamp,

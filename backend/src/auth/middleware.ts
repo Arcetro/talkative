@@ -3,7 +3,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { isAuthDisabled } from "./config.js";
 import { AUTH_ROLES, type AuthRole } from "./types.js";
 
-const PUBLIC_PATHS = new Set(["/health"]);
+const PUBLIC_PATHS = new Set(["/health", "/metrics"]);
 const AUTH_ALGORITHMS: jwt.Algorithm[] = ["HS256"];
 
 function isPublicPath(path: string): boolean {
