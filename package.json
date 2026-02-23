@@ -11,7 +11,7 @@
     "install:all": "pnpm install",
     "dev:backend": "pnpm --filter workflow-agent-backend dev",
     "dev:frontend": "pnpm --filter workflow-agent-frontend dev",
-    "build": "pnpm --filter workflow-agent-backend build && pnpm --filter workflow-agent-frontend build",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
     "test:backend": "npm run test --workspace backend",
     "lint": "npm run lint --workspace backend && npm run lint --workspace frontend",
     "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace frontend"
