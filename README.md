@@ -233,6 +233,12 @@ Run backend tests:
 npm run test:backend
 ```
 
+Run only end-to-end backend loop tests:
+
+```bash
+npm run test:e2e --workspace backend
+```
+
 Covers:
 - tool runner contract + workspace safety
 - orchestrator state machine and run store lifecycle
