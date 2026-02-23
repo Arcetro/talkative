@@ -23,6 +23,9 @@ fleetRouter.post("/fleet/nodes", async (req, res) => {
     if (!tenant_id || !cloud_id || !name || !mode) {
       return res.status(400).json({ error: "tenant_id, cloud_id, name, mode are required" });
     }
+    if (mode === "ssh" && (!ssh_host || !ssh_user)) {
+      return res.status(400).json({ error: "ssh_host and ssh_user are required for ssh mode" });
+    }
 
     const tenant = ensureTenantMatch(req, tenant_id);
     await upsertTenant({ tenant_id: tenant, name: tenant });
@@ -111,12 +114,19 @@ fleetRouter.post("/fleet/agents/:id/provision", async (req, res) => {
       updates: {
         tenant_id: tenant,
         agent_id: agent.agent_id,
-        status: "running"
+        status: result.reused ? agent.status : "running"
       }
     });
 
-    return res.json({ ok: true, tenant_id: tenant, agent_id: agent.agent_id, node_id, ...result });
+    return res.json({
+      ok: true,
+      tenant_id: tenant,
+      agent_id: agent.agent_id,
+      node_id,
+      status: result.reused ? "already_provisioned" : "provisioned",
+      ...result
+    });
   } catch (error) {
-    return res.status(400).json({ error: (error as Error).message });
+    return res.status(502).json({ error: (error as Error).message, status: "provision_failed" });
   }
 });
