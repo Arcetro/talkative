@@ -60,6 +60,7 @@ export async function createApproval(input: {
 }
 
 export async function decideApproval(input: {
+  tenant_id: string;
   id: string;
   operator_id: string;
   decision: "approved" | "rejected";
@@ -68,6 +69,7 @@ export async function decideApproval(input: {
   const requests = await readAll();
   const idx = requests.findIndex((r) => r.id === input.id);
   if (idx < 0) throw new Error("Approval request not found");
+  if (requests[idx].tenant_id !== input.tenant_id) throw new Error("Approval request not found");
 
   requests[idx] = {
     ...requests[idx],

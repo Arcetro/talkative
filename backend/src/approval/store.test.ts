@@ -29,6 +29,7 @@ test("approval store creates, decides and filters requests", async () => {
   assert.equal(pending.agent_id, agent_id);
 
   const decided = await approvalStore.decideApproval({
+    tenant_id,
     id: pending.id,
     operator_id: "ops-1",
     decision: "approved",

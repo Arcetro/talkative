@@ -24,7 +24,12 @@ async function ensureStore(): Promise<void> {
 async function readStore(): Promise<StoreData> {
   await ensureStore();
   const content = await fs.readFile(DATA_FILE, "utf8");
-  return JSON.parse(content) as StoreData;
+  const parsed = JSON.parse(content) as StoreData;
+  parsed.workflows = parsed.workflows.map((workflow) => ({
+    ...workflow,
+    tenant_id: workflow.tenant_id ?? "tenant-default"
+  }));
+  return parsed;
 }
 
 async function writeStore(data: StoreData): Promise<void> {
@@ -43,6 +48,7 @@ function buildVersion(version: number, nodes: WorkflowNode[], edges: WorkflowEdg
 
 export async function createOrUpdateWorkflow(input: {
   id?: string;
+  tenant_id: string;
   name: string;
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
@@ -54,6 +60,7 @@ export async function createOrUpdateWorkflow(input: {
     const workflowId = nanoid(8);
     const created: Workflow = {
       id: workflowId,
+      tenant_id: input.tenant_id,
       name: input.name,
       createdAt: now,
       updatedAt: now,
@@ -73,6 +80,7 @@ export async function createOrUpdateWorkflow(input: {
   if (!existing) {
     const created: Workflow = {
       id: input.id,
+      tenant_id: input.tenant_id,
       name: input.name,
       createdAt: now,
       updatedAt: now,
@@ -81,6 +89,9 @@ export async function createOrUpdateWorkflow(input: {
     store.workflows.push(created);
     await writeStore(store);
     return created;
+  }
+  if (existing.tenant_id !== input.tenant_id) {
+    throw new Error("Workflow does not belong to request tenant");
   }
 
   const latestVersion = existing.versions.at(-1);
@@ -98,14 +109,14 @@ export async function createOrUpdateWorkflow(input: {
   return existing;
 }
 
-export async function getWorkflowById(id: string): Promise<Workflow | null> {
+export async function getWorkflowById(id: string, tenant_id: string): Promise<Workflow | null> {
   const store = await readStore();
-  return store.workflows.find((w) => w.id === id) ?? null;
+  return store.workflows.find((w) => w.id === id && w.tenant_id === tenant_id) ?? null;
 }
 
-export async function createNode(input: { workflowId: string; node: WorkflowNode }): Promise<WorkflowNode> {
+export async function createNode(input: { tenant_id: string; workflowId: string; node: WorkflowNode }): Promise<WorkflowNode> {
   const store = await readStore();
-  const workflow = store.workflows.find((w) => w.id === input.workflowId);
+  const workflow = store.workflows.find((w) => w.id === input.workflowId && w.tenant_id === input.tenant_id);
   if (!workflow) {
     throw new Error("Workflow not found");
   }
@@ -129,12 +140,13 @@ export async function createNode(input: { workflowId: string; node: WorkflowNode
 }
 
 export async function patchNode(input: {
+  tenant_id: string;
   nodeId: string;
   workflowId: string;
   updates: Partial<WorkflowNode>;
 }): Promise<WorkflowNode> {
   const store = await readStore();
-  const workflow = store.workflows.find((w) => w.id === input.workflowId);
+  const workflow = store.workflows.find((w) => w.id === input.workflowId && w.tenant_id === input.tenant_id);
   if (!workflow) {
     throw new Error("Workflow not found");
   }

@@ -12,6 +12,7 @@ import { fleetRouter } from "./routes/fleetRoutes.js";
 import { captureHttpMetrics } from "./observability/httpMetrics.js";
 import { metricsRouter } from "./routes/metricsRoutes.js";
 import { orchestratorRouter } from "./routes/orchestratorRoutes.js";
+import { enforceTenantContext } from "./tenancy/guard.js";
 import { promptRouter } from "./routes/promptRoutes.js";
 import { routerAdminRouter } from "./routes/routerAdminRoutes.js";
 import { workflowRouter } from "./routes/workflowRoutes.js";
@@ -34,6 +35,7 @@ export async function createApp() {
 
   app.use(metricsRouter);
   app.use(authenticateRequest);
+  app.use(enforceTenantContext);
   app.use(authorizeRoleForRequest);
 
   app.use(workflowRouter);

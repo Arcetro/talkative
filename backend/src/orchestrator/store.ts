@@ -100,9 +100,9 @@ export async function appendEvent(input: Omit<OrchestratorEvent, "id" | "created
   return row;
 }
 
-export async function getRun(run_id: string): Promise<RunRecord | null> {
+export async function getRun(run_id: string, tenant_id?: string): Promise<RunRecord | null> {
   const runs = await readRuns();
-  return runs.find((run) => run.run_id === run_id) ?? null;
+  return runs.find((run) => run.run_id === run_id && (tenant_id ? run.tenant_id === tenant_id : true)) ?? null;
 }
 
 export async function listRuns(filter: { tenant_id?: string; agent_id?: string; limit?: number }): Promise<RunRecord[]> {

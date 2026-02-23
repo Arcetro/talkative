@@ -14,6 +14,21 @@ import {
 } from "./types";
 
 const API_BASE = "http://localhost:4000";
+const FALLBACK_TENANT_ID = "tenant-default";
+
+function resolveTenantId(): string {
+  const fromStorage =
+    typeof window !== "undefined" ? window.localStorage.getItem("tenant_id") ?? window.localStorage.getItem("x-tenant-id") : null;
+  return fromStorage?.trim() || FALLBACK_TENANT_ID;
+}
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("x-tenant-id")) {
+    headers.set("x-tenant-id", resolveTenantId());
+  }
+  return fetch(`${API_BASE}${path}`, { ...init, headers });
+}
 
 async function parseOrThrow<T>(response: Response, fallbackError: string): Promise<T> {
   if (!response.ok) {
@@ -33,7 +48,7 @@ export async function saveWorkflow(payload: {
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
 }): Promise<Workflow> {
-  const response = await fetch(`${API_BASE}/workflow`, {
+  const response = await apiFetch("/workflow", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -43,12 +58,12 @@ export async function saveWorkflow(payload: {
 }
 
 export async function getWorkflow(id: string): Promise<Workflow> {
-  const response = await fetch(`${API_BASE}/workflow/${id}`);
+  const response = await apiFetch(`/workflow/${id}`);
   return parseOrThrow<Workflow>(response, "Workflow not found");
 }
 
 export async function interpretText(text: string): Promise<InterpreterResult> {
-  const response = await fetch(`${API_BASE}/conversation/interpret`, {
+  const response = await apiFetch("/conversation/interpret", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ input: { type: "text", text } })
@@ -58,7 +73,7 @@ export async function interpretText(text: string): Promise<InterpreterResult> {
 }
 
 export async function listAgents(): Promise<{ agents: AgentRecord[] }> {
-  const response = await fetch(`${API_BASE}/agents`);
+  const response = await apiFetch("/agents");
   return parseOrThrow<{ agents: AgentRecord[] }>(response, "Failed to list agents");
 }
 
@@ -68,7 +83,7 @@ export async function createAgent(payload: {
   workspace?: string;
   template?: "mail-triage" | "git-watcher" | "monthly-bookkeeping";
 }): Promise<AgentRecord> {
-  const response = await fetch(`${API_BASE}/agents`, {
+  const response = await apiFetch("/agents", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -77,27 +92,27 @@ export async function createAgent(payload: {
 }
 
 export async function startAgent(id: string): Promise<AgentRecord> {
-  const response = await fetch(`${API_BASE}/agents/${id}/start`, { method: "POST" });
+  const response = await apiFetch(`/agents/${id}/start`, { method: "POST" });
   return parseOrThrow<AgentRecord>(response, "Failed to start agent");
 }
 
 export async function stopAgent(id: string): Promise<AgentRecord> {
-  const response = await fetch(`${API_BASE}/agents/${id}/stop`, { method: "POST" });
+  const response = await apiFetch(`/agents/${id}/stop`, { method: "POST" });
   return parseOrThrow<AgentRecord>(response, "Failed to stop agent");
 }
 
 export async function getAgentEvents(id: string, limit = 50): Promise<{ events: AgentEvent[] }> {
-  const response = await fetch(`${API_BASE}/agents/${id}/events?tail=${limit}`);
+  const response = await apiFetch(`/agents/${id}/events?tail=${limit}`);
   return parseOrThrow<{ events: AgentEvent[] }>(response, "Failed to fetch agent events");
 }
 
 export async function getAgentSkills(id: string): Promise<{ skills: AgentSkill[] }> {
-  const response = await fetch(`${API_BASE}/agents/${id}/skills`);
+  const response = await apiFetch(`/agents/${id}/skills`);
   return parseOrThrow<{ skills: AgentSkill[] }>(response, "Failed to fetch agent skills");
 }
 
 export async function attachSkill(id: string, skillName: string): Promise<{ skills: AgentSkill[] }> {
-  const response = await fetch(`${API_BASE}/agents/${id}/skills/attach`, {
+  const response = await apiFetch(`/agents/${id}/skills/attach`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ skillName })
@@ -107,7 +122,7 @@ export async function attachSkill(id: string, skillName: string): Promise<{ skil
 }
 
 export async function sendAgentMessage(id: string, message: string): Promise<AgentMessageResponse> {
-  const response = await fetch(`${API_BASE}/agents/${id}/message`, {
+  const response = await apiFetch(`/agents/${id}/message`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message })
@@ -117,12 +132,12 @@ export async function sendAgentMessage(id: string, message: string): Promise<Age
 }
 
 export async function getRouterRules(): Promise<RouterRuleSet> {
-  const response = await fetch(`${API_BASE}/router/admin/rules`);
+  const response = await apiFetch("/router/admin/rules");
   return parseOrThrow<RouterRuleSet>(response, "Failed to fetch router rules");
 }
 
 export async function putRouterRules(payload: RouterRuleSet): Promise<RouterRuleSet> {
-  const response = await fetch(`${API_BASE}/router/admin/rules`, {
+  const response = await apiFetch("/router/admin/rules", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -144,17 +159,17 @@ export async function getRouterUsage(params: {
   if (params.from) query.set("from", params.from);
   if (params.to) query.set("to", params.to);
 
-  const response = await fetch(`${API_BASE}/router/admin/usage?${query.toString()}`);
+  const response = await apiFetch(`/router/admin/usage?${query.toString()}`);
   return parseOrThrow<{ usage: RouterUsageRecord[] }>(response, "Failed to fetch router usage");
 }
 
 export async function getRouterBudgets(): Promise<RouterBudgetCaps> {
-  const response = await fetch(`${API_BASE}/router/admin/budgets`);
+  const response = await apiFetch("/router/admin/budgets");
   return parseOrThrow<RouterBudgetCaps>(response, "Failed to fetch router budgets");
 }
 
 export async function putRouterBudgets(payload: RouterBudgetCaps): Promise<RouterBudgetCaps> {
-  const response = await fetch(`${API_BASE}/router/admin/budgets`, {
+  const response = await apiFetch("/router/admin/budgets", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -168,7 +183,7 @@ export async function getRouterMetrics(): Promise<{
   total_cost: number;
   error_rate: number;
 }> {
-  const response = await fetch(`${API_BASE}/router/metrics`);
+  const response = await apiFetch("/router/metrics");
   return parseOrThrow(response, "Failed to fetch router metrics");
 }
 
@@ -184,7 +199,7 @@ export async function getApprovals(params: {
   if (params.status) query.set("status", params.status);
   if (params.limit) query.set("limit", String(params.limit));
 
-  const response = await fetch(`${API_BASE}/approvals?${query.toString()}`);
+  const response = await apiFetch(`/approvals?${query.toString()}`);
   return parseOrThrow<{ approvals: ApprovalRequest[] }>(response, "Failed to fetch approvals");
 }
 
@@ -194,7 +209,7 @@ export async function decideApproval(input: {
   decision: "approved" | "rejected";
   note?: string;
 }): Promise<ApprovalRequest> {
-  const response = await fetch(`${API_BASE}/approvals/${input.id}/decision`, {
+  const response = await apiFetch(`/approvals/${input.id}/decision`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

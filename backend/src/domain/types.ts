@@ -42,6 +42,7 @@ export interface WorkflowVersion {
 
 export interface Workflow {
   id: string;
+  tenant_id: string;
   name: string;
   createdAt: string;
   updatedAt: string;

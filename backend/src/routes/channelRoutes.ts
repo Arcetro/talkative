@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { Router } from "express";
 import { appendCommand } from "../orchestrator/store.js";
 import { appendClientMessage, appendInternalAction, listClientMessages } from "../channels/store.js";
+import { ensureTenantMatch } from "../tenancy/guard.js";
 
 export const channelRouter = Router();
 
@@ -18,12 +19,13 @@ channelRouter.post("/channels/client/messages", async (req, res) => {
     if (!tenant_id || !agent_id || !client_id || !text) {
       return res.status(400).json({ error: "tenant_id, agent_id, client_id, text are required" });
     }
+    const tenant = ensureTenantMatch(req, tenant_id);
 
     const run_id = `run-${nanoid(10)}`;
-    const message = await appendClientMessage({ tenant_id, agent_id, client_id, text, run_id });
+    const message = await appendClientMessage({ tenant_id: tenant, agent_id, client_id, text, run_id });
 
     await appendCommand({
-      tenant_id,
+      tenant_id: tenant,
       agent_id,
       run_id,
       type: "start_task",
@@ -47,8 +49,9 @@ channelRouter.post("/channels/client/messages", async (req, res) => {
 
 channelRouter.get("/channels/client/messages", async (req, res) => {
   const limit = Number(req.query.limit ?? 100);
+  const tenant_id = ensureTenantMatch(req, req.query.tenant_id as string | undefined);
   const rows = await listClientMessages({
-    tenant_id: req.query.tenant_id as string | undefined,
+    tenant_id,
     agent_id: req.query.agent_id as string | undefined,
     limit: Number.isNaN(limit) ? 100 : limit
   });
@@ -69,8 +72,9 @@ channelRouter.post("/channels/internal/actions", async (req, res) => {
     if (!tenant_id || !agent_id || !operator_id || !action) {
       return res.status(400).json({ error: "tenant_id, agent_id, operator_id, action are required" });
     }
+    const tenant = ensureTenantMatch(req, tenant_id);
 
-    const row = await appendInternalAction({ tenant_id, agent_id, operator_id, action, payload });
+    const row = await appendInternalAction({ tenant_id: tenant, agent_id, operator_id, action, payload });
     return res.status(201).json({ accepted: true, channel: "internal", action: row });
   } catch (error) {
     return res.status(400).json({ error: (error as Error).message });
