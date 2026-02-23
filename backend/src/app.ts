@@ -8,6 +8,8 @@ import { approvalRouter } from "./routes/approvalRoutes.js";
 import { channelRouter } from "./routes/channelRoutes.js";
 import { conversationRouter } from "./routes/conversationRoutes.js";
 import { fleetRouter } from "./routes/fleetRoutes.js";
+import { captureHttpMetrics } from "./observability/httpMetrics.js";
+import { metricsRouter } from "./routes/metricsRoutes.js";
 import { orchestratorRouter } from "./routes/orchestratorRoutes.js";
 import { promptRouter } from "./routes/promptRoutes.js";
 import { routerAdminRouter } from "./routes/routerAdminRoutes.js";
@@ -21,11 +23,13 @@ export async function createApp() {
 
   app.use(cors());
   app.use(express.json());
+  app.use(captureHttpMetrics);
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "workflow-agent-backend" });
   });
 
+  app.use(metricsRouter);
   app.use(authenticateRequest);
   app.use(authorizeRoleForRequest);
 

@@ -10,6 +10,7 @@ A local proof-of-concept that combines:
 
 - Detailed architecture summary and diagrams:
   - `/Users/monotributistar/SOURCES/Talkative /docs/architecture.md`
+  - `/Users/monotributistar/SOURCES/Talkative /docs/metrics.md`
   - `/Users/monotributistar/SOURCES/Talkative /docs/release-runbook.md`
 
 ## Stack
@@ -225,6 +226,17 @@ Example local token:
 ```bash
 node -e "console.log(require('jsonwebtoken').sign({sub:'local-admin',role:'admin',tenant_id:'tenant-default'}, process.env.AUTH_JWT_SECRET, {algorithm:'HS256',expiresIn:'1h'}))"
 ```
+
+## Prometheus Metrics
+
+- Metrics endpoint: `GET /metrics`
+- Exposes counters for:
+  - runs
+  - tool calls
+  - tool failures
+  - router tokens
+  - router cost (USD)
+- Exposes HTTP latency histogram for key endpoints by `method` and `endpoint` labels.
 
 ## Tests (TDD baseline)
 

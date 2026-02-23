@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { DATA_ROOT } from "../agents/paths.js";
+import { recordRouterUsage } from "../observability/metrics.js";
 import { BudgetCaps, RouterRuleSet, RouterUsageRecord } from "./types.js";
 
 const ROUTER_DIR = path.join(DATA_ROOT, "llm-router");
@@ -82,6 +83,7 @@ export async function appendUsage(input: Omit<RouterUsageRecord, "id" | "created
     ...input
   };
   await fs.appendFile(USAGE_FILE, `${JSON.stringify(record)}\n`, "utf8");
+  recordRouterUsage({ tokens: record.tokens, cost: record.cost });
   return record;
 }
 
