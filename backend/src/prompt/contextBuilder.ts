@@ -1,3 +1,4 @@
+import { interpolate } from "./interpolate.js";
 import { BuiltContext } from "./types.js";
 import { allocateAndTruncate, BudgetWeights, DEFAULT_WEIGHTS, Section } from "./budget.js";
 
@@ -73,13 +74,17 @@ export function buildDeterministicContext(input: {
   skills: string[];
   recentEvents: ContextEvent[];
   maxTokens: number;
+  variables?: Record<string, string>;
 }): BuiltContext {
   const eventsText = input.recentEvents.map((e) => `- ${e.type}: ${e.message}`).join("\n");
   const skillsText = input.skills.join(", ");
   const errorBlock = compactErrors(input.recentEvents);
 
+  // Interpolate template variables before building context
+  const { text: resolvedPrompt } = interpolate(input.promptTemplate, input.variables ?? {});
+
   const sections = [
-    `Prompt: ${input.promptTemplate}`,
+    `Prompt: ${resolvedPrompt}`,
     `User Message: ${input.userMessage}`,
     `Skills: ${skillsText || "none"}`,
     `Recent Events:\n${eventsText || "- none"}`
@@ -92,7 +97,7 @@ export function buildDeterministicContext(input: {
   const combined = sections.join("\n\n");
   const compacted = truncateText(combined, input.maxTokens);
   return {
-    prompt_template: input.promptTemplate,
+    prompt_template: resolvedPrompt,
     context_text: compacted.text,
     token_estimate: estimateTokens(compacted.text),
     truncated: compacted.truncated
