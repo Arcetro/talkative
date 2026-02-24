@@ -13,4 +13,18 @@ export interface BuiltContext {
   context_text: string;
   token_estimate: number;
   truncated: boolean;
+  budget?: BudgetReport;
+}
+
+export interface SectionBudget {
+  name: string;
+  allocated: number;
+  used: number;
+  truncated: boolean;
+}
+
+export interface BudgetReport {
+  total_budget: number;
+  total_used: number;
+  sections: SectionBudget[];
 }
