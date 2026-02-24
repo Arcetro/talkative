@@ -1,4 +1,5 @@
 import { BuiltContext } from "./types.js";
+import { allocateAndTruncate, BudgetWeights, DEFAULT_WEIGHTS, Section } from "./budget.js";
 
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -95,5 +96,52 @@ export function buildDeterministicContext(input: {
     context_text: compacted.text,
     token_estimate: estimateTokens(compacted.text),
     truncated: compacted.truncated
+  };
+}
+
+/**
+ * Budget-aware context builder (Factor #3).
+ *
+ * Allocates token budgets per section, truncates independently,
+ * and redistributes surplus. Returns a budget report for observability.
+ */
+export function buildBudgetedContext(input: {
+  promptTemplate: string;
+  userMessage: string;
+  skills: string[];
+  recentEvents: ContextEvent[];
+  maxTokens: number;
+  weights?: BudgetWeights;
+}): BuiltContext {
+  const eventsText = input.recentEvents.map((e) => `- ${e.type}: ${e.message}`).join("\n");
+  const skillsText = input.skills.join(", ");
+  const errorBlock = compactErrors(input.recentEvents);
+
+  const promptContent = `Prompt: ${input.promptTemplate}\nSkills: ${skillsText || "none"}`;
+
+  const budgetSections: Section[] = [
+    { name: "prompt", content: promptContent },
+    { name: "user_message", content: `User Message: ${input.userMessage}` },
+    { name: "events", content: `Recent Events:\n${eventsText || "- none"}` },
+    { name: "errors", content: errorBlock },
+  ];
+
+  const { results, report } = allocateAndTruncate(
+    budgetSections,
+    input.maxTokens,
+    input.weights ?? DEFAULT_WEIGHTS
+  );
+
+  const contextText = results
+    .map((r) => r.text)
+    .filter((t) => t.length > 0)
+    .join("\n\n");
+
+  return {
+    prompt_template: input.promptTemplate,
+    context_text: contextText,
+    token_estimate: report.total_used,
+    truncated: report.sections.some((s) => s.truncated),
+    budget: report,
   };
 }
