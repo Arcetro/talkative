@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allocateAndTruncate, DEFAULT_WEIGHTS } from "./budget.js";
+import { allocateAndTruncate } from "./budget.js";
 import { buildBudgetedContext } from "./contextBuilder.js";
 
 // ── allocateAndTruncate tests ───────────────────────────────────────
