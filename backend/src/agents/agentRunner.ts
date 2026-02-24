@@ -3,6 +3,7 @@ import path from "node:path";
 import { nanoid } from "nanoid";
 import { createApproval } from "../approval/store.js";
 import { mirrorAgentEvent } from "../orchestrator/service.js";
+import { getActiveRunForAgent } from "../orchestrator/store.js";
 import { buildDeterministicContext, ContextEvent } from "../prompt/contextBuilder.js";
 import { createPromptVersion, getActivePrompt } from "../prompt/store.js";
 import { interpretConversation } from "../services/interpreter.js";
@@ -150,6 +151,12 @@ export class AgentRunner {
   }
 
   async runHeartbeat(reason: "scheduled" | "manual"): Promise<AgentEvent[]> {
+    // Check if agent has a paused or cancelled run — skip heartbeat if so
+    const activeRun = await getActiveRunForAgent(this.agent.agent_id);
+    if (activeRun && (activeRun.status === "paused" || activeRun.status === "cancelled")) {
+      return [await this.emit("HEARTBEAT_TICK", `Heartbeat skipped: run ${activeRun.run_id} is ${activeRun.status}`, { reason, skipped: true, run_id: activeRun.run_id })];
+    }
+
     const emitted: AgentEvent[] = [];
     const heartbeatPath = path.join(this.agent.workspace, "HEARTBEAT.md");
     let content = "";
@@ -210,6 +217,17 @@ export class AgentRunner {
   }
 
   async handleMessage(message: string): Promise<AgentMessageResponse> {
+    // Check if agent has a paused run — reject messages if so
+    const activeRun = await getActiveRunForAgent(this.agent.agent_id);
+    if (activeRun && activeRun.status === "paused") {
+      return {
+        agentId: this.agent.id,
+        reply: `Agent ${this.agent.name} is paused (run ${activeRun.run_id}). Resume the run before sending messages.`,
+        actions: [{ type: "agent.paused", data: { run_id: activeRun.run_id, status: activeRun.status } }],
+        events: []
+      };
+    }
+
     const startedAt = Date.now();
     const run_id = `run-${nanoid(8)}`;
     const events: AgentEvent[] = [];
