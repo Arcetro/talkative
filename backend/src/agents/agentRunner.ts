@@ -251,7 +251,12 @@ export class AgentRunner {
         message: row.message,
         ...(row.payload ? { payload: row.payload } : {})
       })),
-      maxTokens: 700
+      maxTokens: 700,
+      variables: {
+        agent_name: this.agent.name,
+        agent_id: this.agent.agent_id,
+        tenant_id: this.agent.tenant_id
+      }
     });
 
     const interpretation = interpretConversation(message);
