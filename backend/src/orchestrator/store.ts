@@ -119,11 +119,11 @@ export async function listRuns(filter: { tenant_id?: string; agent_id?: string; 
  * "Active" means status is running or paused (not completed/cancelled/failed).
  * Returns null if the agent has no active runs.
  */
-export async function getActiveRunForAgent(agent_id: string): Promise<RunRecord | null> {
+export async function getActiveRunForAgent(tenant_id: string, agent_id: string): Promise<RunRecord | null> {
   const runs = await readRuns();
   const active = runs
-    .filter((run) => run.agent_id === agent_id)
-    .filter((run) => run.status === "running" || run.status === "paused" || run.status === "pending")
+    .filter((run) => run.tenant_id === tenant_id && run.agent_id === agent_id)
+    .filter((run) => run.status === "running" || run.status === "paused")
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   return active[0] ?? null;
 }

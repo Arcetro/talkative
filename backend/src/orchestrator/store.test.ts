@@ -63,7 +63,7 @@ test("getActiveRunForAgent returns most recent active run", async () => {
   const runId = `test-active-${Date.now()}`;
 
   // No active run yet
-  let active = await getActiveRunForAgent(agentId);
+  let active = await getActiveRunForAgent("tenant-default", agentId);
   assert.equal(active, null);
 
   // Start a run
@@ -71,7 +71,7 @@ test("getActiveRunForAgent returns most recent active run", async () => {
     tenant_id: "tenant-default", agent_id: agentId, run_id: runId,
     type: "start_task", payload: { source: "test" }
   });
-  active = await getActiveRunForAgent(agentId);
+  active = await getActiveRunForAgent("tenant-default", agentId);
   assert.ok(active);
   assert.equal(active?.status, "running");
   assert.equal(active?.run_id, runId);
@@ -81,7 +81,7 @@ test("getActiveRunForAgent returns most recent active run", async () => {
     tenant_id: "tenant-default", agent_id: agentId, run_id: runId,
     type: "pause", payload: { source: "test" }
   });
-  active = await getActiveRunForAgent(agentId);
+  active = await getActiveRunForAgent("tenant-default", agentId);
   assert.ok(active);
   assert.equal(active?.status, "paused");
 
@@ -90,7 +90,7 @@ test("getActiveRunForAgent returns most recent active run", async () => {
     tenant_id: "tenant-default", agent_id: agentId, run_id: runId,
     type: "cancel", payload: { source: "test" }
   });
-  active = await getActiveRunForAgent(agentId);
+  active = await getActiveRunForAgent("tenant-default", agentId);
   assert.equal(active, null);
 });
 
@@ -107,7 +107,7 @@ test("paused run blocks resume to running correctly", async () => {
     type: "pause", payload: { source: "test" }
   });
 
-  let active = await getActiveRunForAgent(agentId);
+  let active = await getActiveRunForAgent("tenant-default", agentId);
   assert.equal(active?.status, "paused");
 
   // Resume
@@ -115,6 +115,6 @@ test("paused run blocks resume to running correctly", async () => {
     tenant_id: "tenant-default", agent_id: agentId, run_id: runId,
     type: "resume", payload: { source: "test" }
   });
-  active = await getActiveRunForAgent(agentId);
+  active = await getActiveRunForAgent("tenant-default", agentId);
   assert.equal(active?.status, "running");
 });

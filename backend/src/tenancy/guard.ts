@@ -2,6 +2,10 @@ import type { NextFunction, Request, Response } from "express";
 
 const PUBLIC_PATHS = new Set(["/health", "/metrics", "/events"]);
 
+function isPublicWebhookIngress(req: Request): boolean {
+  return req.method === "POST" && req.path.startsWith("/webhooks/");
+}
+
 export function getTenantIdOrThrow(req: Request): string {
   const contextTenant = req.context?.tenant_id;
   const tenant = contextTenant && contextTenant !== "unknown" ? contextTenant : req.auth?.tenant_id;
@@ -20,7 +24,7 @@ export function ensureTenantMatch(req: Request, candidate: string | undefined, f
 }
 
 export function enforceTenantContext(req: Request, res: Response, next: NextFunction): void {
-  if (req.method === "OPTIONS" || PUBLIC_PATHS.has(req.path)) {
+  if (req.method === "OPTIONS" || PUBLIC_PATHS.has(req.path) || isPublicWebhookIngress(req)) {
     next();
     return;
   }

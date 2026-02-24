@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { ensureTenantMatch } from "../tenancy/guard.js";
-import { createWebhook, disableWebhook, listWebhooks, listInvocations } from "../webhooks/store.js";
+import { ensureTenantMatch, getTenantIdOrThrow } from "../tenancy/guard.js";
+import { createWebhook, disableWebhook, getWebhook, listWebhooks, listInvocations } from "../webhooks/store.js";
 import { handleWebhook } from "../webhooks/handler.js";
 
 export const webhookRouter = Router();
@@ -76,12 +76,20 @@ webhookRouter.get("/webhook-configs", async (req, res) => {
 });
 
 webhookRouter.post("/webhook-configs/:id/disable", async (req, res) => {
+  getTenantIdOrThrow(req);
+  const current = await getWebhook(req.params.id);
+  if (!current) return res.status(404).json({ error: "Webhook not found" });
+  ensureTenantMatch(req, current.tenant_id);
   const webhook = await disableWebhook(req.params.id);
   if (!webhook) return res.status(404).json({ error: "Webhook not found" });
   return res.json(webhook);
 });
 
 webhookRouter.get("/webhook-configs/:id/invocations", async (req, res) => {
+  getTenantIdOrThrow(req);
+  const current = await getWebhook(req.params.id);
+  if (!current) return res.status(404).json({ error: "Webhook not found" });
+  ensureTenantMatch(req, current.tenant_id);
   const limit = Number(req.query.limit ?? 50);
   const invocations = await listInvocations({
     webhook_id: req.params.id,

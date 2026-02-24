@@ -6,6 +6,10 @@ import { AUTH_ROLES, type AuthRole } from "./types.js";
 const PUBLIC_PATHS = new Set(["/health", "/metrics"]);
 const AUTH_ALGORITHMS: jwt.Algorithm[] = ["HS256"];
 
+function isPublicWebhookIngress(req: Request): boolean {
+  return req.method === "POST" && req.path.startsWith("/webhooks/");
+}
+
 function isPublicPath(path: string): boolean {
   return PUBLIC_PATHS.has(path);
 }
@@ -40,7 +44,7 @@ function deny(res: Response, status: 401 | 403, code: string, message: string): 
 }
 
 export function authenticateRequest(req: Request, res: Response, next: NextFunction): void {
-  if (req.method === "OPTIONS" || isPublicPath(req.path)) {
+  if (req.method === "OPTIONS" || isPublicPath(req.path) || isPublicWebhookIngress(req)) {
     next();
     return;
   }
@@ -99,7 +103,7 @@ function isWriteMethod(req: Request): boolean {
 }
 
 export function authorizeRoleForRequest(req: Request, res: Response, next: NextFunction): void {
-  if (req.method === "OPTIONS" || isPublicPath(req.path)) {
+  if (req.method === "OPTIONS" || isPublicPath(req.path) || isPublicWebhookIngress(req)) {
     next();
     return;
   }

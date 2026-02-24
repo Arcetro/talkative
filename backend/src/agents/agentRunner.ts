@@ -151,9 +151,9 @@ export class AgentRunner {
   }
 
   async runHeartbeat(reason: "scheduled" | "manual"): Promise<AgentEvent[]> {
-    // Check if agent has a paused or cancelled run — skip heartbeat if so
-    const activeRun = await getActiveRunForAgent(this.agent.agent_id);
-    if (activeRun && (activeRun.status === "paused" || activeRun.status === "cancelled")) {
+    // Skip heartbeat when agent has an active paused run.
+    const activeRun = await getActiveRunForAgent(this.agent.tenant_id, this.agent.agent_id);
+    if (activeRun && activeRun.status === "paused") {
       return [await this.emit("HEARTBEAT_TICK", `Heartbeat skipped: run ${activeRun.run_id} is ${activeRun.status}`, { reason, skipped: true, run_id: activeRun.run_id })];
     }
 
@@ -218,7 +218,7 @@ export class AgentRunner {
 
   async handleMessage(message: string): Promise<AgentMessageResponse> {
     // Check if agent has a paused run — reject messages if so
-    const activeRun = await getActiveRunForAgent(this.agent.agent_id);
+    const activeRun = await getActiveRunForAgent(this.agent.tenant_id, this.agent.agent_id);
     if (activeRun && activeRun.status === "paused") {
       return {
         agentId: this.agent.id,

@@ -15,6 +15,7 @@ import { orchestratorRouter } from "./routes/orchestratorRoutes.js";
 import { enforceTenantContext } from "./tenancy/guard.js";
 import { promptRouter } from "./routes/promptRoutes.js";
 import { routerAdminRouter } from "./routes/routerAdminRoutes.js";
+import { webhookRouter } from "./routes/webhookRoutes.js";
 import { workflowRouter } from "./routes/workflowRoutes.js";
 import { subscribeEvents } from "./services/eventBus.js";
 
@@ -47,6 +48,7 @@ export async function createApp() {
   app.use(routerAdminRouter);
   app.use(fleetRouter);
   app.use(orchestratorRouter);
+  app.use(webhookRouter);
 
   app.get("/events", (_req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
