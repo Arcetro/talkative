@@ -2,7 +2,6 @@ import { nanoid } from "nanoid";
 import { appendCommand } from "../orchestrator/store.js";
 import { publishEvent } from "../services/eventBus.js";
 import { getWebhook, logInvocation } from "./store.js";
-import { WebhookInvocation } from "./types.js";
 
 export interface WebhookPayload {
   event_type: string;
