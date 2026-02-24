@@ -40,12 +40,29 @@ export class AgentHub {
     });
   }
 
-  listAgents(): AgentRecord[] {
-    return this.registry.list();
+  private assertTenantAccess(agent: AgentRecord, tenant_id?: string): void {
+    if (tenant_id && agent.tenant_id !== tenant_id) {
+      throw new Error("Agent does not belong to request tenant");
+    }
   }
 
-  getAgent(id: string): AgentRecord | undefined {
-    return this.registry.get(id);
+  listAgents(filter?: { tenant_id?: string }): AgentRecord[] {
+    const tenant_id = filter?.tenant_id;
+    return this.registry.list().filter((agent) => (tenant_id ? agent.tenant_id === tenant_id : true));
+  }
+
+  getAgent(id: string, tenant_id?: string): AgentRecord | undefined {
+    const agent = this.registry.get(id);
+    if (!agent) return undefined;
+    if (tenant_id && agent.tenant_id !== tenant_id) return undefined;
+    return agent;
+  }
+
+  private getRunnerOrThrow(id: string, tenant_id?: string): AgentRunner {
+    const runner = this.runners.get(id);
+    if (!runner) throw new Error("Agent not found");
+    this.assertTenantAccess(runner.getAgent(), tenant_id);
+    return runner;
   }
 
   async createAgent(input: {
@@ -159,30 +176,25 @@ export class AgentHub {
     );
   }
 
-  async startAgent(id: string): Promise<AgentRecord> {
-    const runner = this.runners.get(id);
-    if (!runner) throw new Error("Agent not found");
+  async startAgent(id: string, tenant_id?: string): Promise<AgentRecord> {
+    const runner = this.getRunnerOrThrow(id, tenant_id);
     await runner.start();
     return runner.getAgent();
   }
 
-  async stopAgent(id: string): Promise<AgentRecord> {
-    const runner = this.runners.get(id);
-    if (!runner) throw new Error("Agent not found");
+  async stopAgent(id: string, tenant_id?: string): Promise<AgentRecord> {
+    const runner = this.getRunnerOrThrow(id, tenant_id);
     await runner.stop();
     return runner.getAgent();
   }
 
-  async getAgentSkills(id: string): Promise<AgentSkill[]> {
-    const runner = this.runners.get(id);
-    if (!runner) throw new Error("Agent not found");
+  async getAgentSkills(id: string, tenant_id?: string): Promise<AgentSkill[]> {
+    const runner = this.getRunnerOrThrow(id, tenant_id);
     return runner.refreshSkills();
   }
 
-  async attachSkill(id: string, input: { skillName: string }): Promise<AgentSkill[]> {
-    const runner = this.runners.get(id);
-    if (!runner) throw new Error("Agent not found");
-
+  async attachSkill(id: string, input: { skillName: string }, tenant_id?: string): Promise<AgentSkill[]> {
+    const runner = this.getRunnerOrThrow(id, tenant_id);
     const agent = runner.getAgent();
     const templatePath = path.join(SKILL_TEMPLATES_ROOT, input.skillName);
     if (!(await exists(templatePath))) {
@@ -221,9 +233,8 @@ export class AgentHub {
     return readAgentEvents(id, limit);
   }
 
-  async sendMessage(id: string, message: string): Promise<AgentMessageResponse> {
-    const runner = this.runners.get(id);
-    if (!runner) throw new Error("Agent not found");
+  async sendMessage(id: string, message: string, tenant_id?: string): Promise<AgentMessageResponse> {
+    const runner = this.getRunnerOrThrow(id, tenant_id);
 
     if (runner.getAgent().status !== "running") {
       throw new Error("Agent is stopped. Start it before sending messages.");
@@ -232,28 +243,33 @@ export class AgentHub {
     return runner.handleMessage(message);
   }
 
-  classifyAgent(message: string): AgentRecord | null {
+  classifyAgent(message: string, tenant_id?: string): AgentRecord | null {
     const lower = message.toLowerCase();
+    const scoped = this.registry.list().filter((agent) => (tenant_id ? agent.tenant_id === tenant_id : true));
 
     if (lower.includes("mail") || lower.includes("email") || lower.includes("inbox")) {
-      return this.registry.list().find((agent) => agent.name.toLowerCase().includes("mail")) ?? this.registry.list()[0] ?? null;
+      return scoped.find((agent) => agent.name.toLowerCase().includes("mail")) ?? scoped[0] ?? null;
     }
 
     if (lower.includes("git") || lower.includes("repo")) {
-      return this.registry.list().find((agent) => agent.name.toLowerCase().includes("git")) ?? this.registry.list()[0] ?? null;
+      return scoped.find((agent) => agent.name.toLowerCase().includes("git")) ?? scoped[0] ?? null;
     }
 
-    return this.registry.list()[0] ?? null;
+    return scoped[0] ?? null;
   }
 
-  async routeMessage(message: string, preferredAgentId?: string): Promise<{ agentId: string; response: AgentMessageResponse }> {
-    const preferred = preferredAgentId ? this.getAgent(preferredAgentId) ?? null : null;
-    const selected = preferred ?? this.classifyAgent(message);
+  async routeMessage(
+    message: string,
+    preferredAgentId?: string,
+    tenant_id?: string
+  ): Promise<{ agentId: string; response: AgentMessageResponse }> {
+    const preferred = preferredAgentId ? this.getAgent(preferredAgentId, tenant_id) ?? null : null;
+    const selected = preferred ?? this.classifyAgent(message, tenant_id);
     if (!selected) {
       throw new Error("No agents available to route this message");
     }
 
-    const response = await this.sendMessage(selected.id, message);
+    const response = await this.sendMessage(selected.id, message, tenant_id);
     return { agentId: selected.id, response };
   }
 }

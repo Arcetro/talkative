@@ -3,6 +3,7 @@ import express from "express";
 import { agentHub } from "./agents/agentHub.js";
 import { authenticateRequest, authorizeRoleForRequest } from "./auth/middleware.js";
 import { validateSecurityConfig } from "./auth/config.js";
+import { attachRequestContext, logRequestLifecycle, logUnhandledError } from "./observability/requestContext.js";
 import { agentRouter } from "./routes/agentRoutes.js";
 import { approvalRouter } from "./routes/approvalRoutes.js";
 import { channelRouter } from "./routes/channelRoutes.js";
@@ -11,6 +12,7 @@ import { fleetRouter } from "./routes/fleetRoutes.js";
 import { captureHttpMetrics } from "./observability/httpMetrics.js";
 import { metricsRouter } from "./routes/metricsRoutes.js";
 import { orchestratorRouter } from "./routes/orchestratorRoutes.js";
+import { enforceTenantContext } from "./tenancy/guard.js";
 import { promptRouter } from "./routes/promptRoutes.js";
 import { routerAdminRouter } from "./routes/routerAdminRoutes.js";
 import { workflowRouter } from "./routes/workflowRoutes.js";
@@ -23,6 +25,8 @@ export async function createApp() {
 
   app.use(cors());
   app.use(express.json());
+  app.use(attachRequestContext);
+  app.use(logRequestLifecycle);
   app.use(captureHttpMetrics);
 
   app.get("/health", (_req, res) => {
@@ -31,6 +35,7 @@ export async function createApp() {
 
   app.use(metricsRouter);
   app.use(authenticateRequest);
+  app.use(enforceTenantContext);
   app.use(authorizeRoleForRequest);
 
   app.use(workflowRouter);
@@ -65,5 +70,6 @@ export async function createApp() {
   });
 
   await agentHub.init();
+  app.use(logUnhandledError);
   return app;
 }

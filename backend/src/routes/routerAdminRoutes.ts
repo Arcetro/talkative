@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getBudgets, getMetrics, getRules, getUsage, putBudgets, putRules } from "../router/store.js";
 import { BudgetCaps, RouterRuleSet } from "../router/types.js";
+import { ensureTenantMatch } from "../tenancy/guard.js";
 
 export const routerAdminRouter = Router();
 
@@ -22,8 +23,9 @@ routerAdminRouter.put("/router/admin/rules", async (req, res) => {
 
 routerAdminRouter.get("/router/admin/usage", async (req, res) => {
   const limit = Number(req.query.limit ?? 100);
+  const tenant_id = ensureTenantMatch(req, req.query.tenant_id as string | undefined);
   const rows = await getUsage({
-    tenant_id: req.query.tenant_id as string | undefined,
+    tenant_id,
     agent_id: req.query.agent_id as string | undefined,
     from: req.query.from as string | undefined,
     to: req.query.to as string | undefined,

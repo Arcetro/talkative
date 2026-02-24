@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { appendCommand, appendEvent, getRun, listRuns } from "../orchestrator/store.js";
+import { ensureTenantMatch, getTenantIdOrThrow } from "../tenancy/guard.js";
 
 export const orchestratorRouter = Router();
 
@@ -31,8 +32,9 @@ orchestratorRouter.post("/orchestrator/commands", async (req, res) => {
       return res.status(400).json({ error: `Invalid command type: ${type}` });
     }
 
+    const tenant = ensureTenantMatch(req, tenant_id);
     const row = await appendCommand({
-      tenant_id,
+      tenant_id: tenant,
       agent_id,
       run_id,
       type: type as any,
@@ -65,8 +67,9 @@ orchestratorRouter.post("/orchestrator/events", async (req, res) => {
       return res.status(400).json({ error: `Invalid event type: ${type}` });
     }
 
+    const tenant = ensureTenantMatch(req, tenant_id);
     const row = await appendEvent({
-      tenant_id,
+      tenant_id: tenant,
       agent_id,
       run_id,
       type: type as any,
@@ -81,13 +84,14 @@ orchestratorRouter.post("/orchestrator/events", async (req, res) => {
 });
 
 orchestratorRouter.get("/orchestrator/runs/:run_id", async (req, res) => {
-  const run = await getRun(req.params.run_id);
+  const tenant_id = getTenantIdOrThrow(req);
+  const run = await getRun(req.params.run_id, tenant_id);
   if (!run) return res.status(404).json({ error: "Run not found" });
   return res.json(run);
 });
 
-async function controlRun(run_id: string, type: "pause" | "resume" | "cancel") {
-  const run = await getRun(run_id);
+async function controlRun(run_id: string, type: "pause" | "resume" | "cancel", tenant_id: string) {
+  const run = await getRun(run_id, tenant_id);
   if (!run) {
     throw new Error("Run not found");
   }
@@ -102,7 +106,8 @@ async function controlRun(run_id: string, type: "pause" | "resume" | "cancel") {
 
 orchestratorRouter.post("/orchestrator/runs/:run_id/pause", async (req, res) => {
   try {
-    const row = await controlRun(req.params.run_id, "pause");
+    const tenant_id = getTenantIdOrThrow(req);
+    const row = await controlRun(req.params.run_id, "pause", tenant_id);
     return res.json({ ok: true, command: row });
   } catch (error) {
     return res.status(404).json({ error: (error as Error).message });
@@ -111,7 +116,8 @@ orchestratorRouter.post("/orchestrator/runs/:run_id/pause", async (req, res) => 
 
 orchestratorRouter.post("/orchestrator/runs/:run_id/resume", async (req, res) => {
   try {
-    const row = await controlRun(req.params.run_id, "resume");
+    const tenant_id = getTenantIdOrThrow(req);
+    const row = await controlRun(req.params.run_id, "resume", tenant_id);
     return res.json({ ok: true, command: row });
   } catch (error) {
     return res.status(404).json({ error: (error as Error).message });
@@ -120,7 +126,8 @@ orchestratorRouter.post("/orchestrator/runs/:run_id/resume", async (req, res) =>
 
 orchestratorRouter.post("/orchestrator/runs/:run_id/cancel", async (req, res) => {
   try {
-    const row = await controlRun(req.params.run_id, "cancel");
+    const tenant_id = getTenantIdOrThrow(req);
+    const row = await controlRun(req.params.run_id, "cancel", tenant_id);
     return res.json({ ok: true, command: row });
   } catch (error) {
     return res.status(404).json({ error: (error as Error).message });
@@ -129,8 +136,9 @@ orchestratorRouter.post("/orchestrator/runs/:run_id/cancel", async (req, res) =>
 
 orchestratorRouter.get("/orchestrator/runs", async (req, res) => {
   const limit = Number(req.query.limit ?? 100);
+  const tenant_id = ensureTenantMatch(req, req.query.tenant_id as string | undefined);
   const runs = await listRuns({
-    tenant_id: req.query.tenant_id as string | undefined,
+    tenant_id,
     agent_id: req.query.agent_id as string | undefined,
     limit: Number.isNaN(limit) ? 100 : limit
   });

@@ -202,6 +202,53 @@ npm run dev:frontend
 4. Open:
 - [http://localhost:5173](http://localhost:5173)
 
+## PostgreSQL + Prisma (DB mode)
+
+Default persistence is filesystem (`PERSISTENCE_DRIVER=fs`).
+
+To run with PostgreSQL:
+
+1. Start local Postgres:
+```bash
+docker compose up -d postgres
+```
+
+2. Configure backend env (example):
+```bash
+cp backend/.env.example backend/.env
+```
+Set:
+- `PERSISTENCE_DRIVER=db`
+- `DATABASE_URL=postgresql://talkative:talkative@localhost:5432/talkative?schema=public`
+
+3. Generate Prisma client and push schema:
+```bash
+npm run prisma:generate --workspace backend
+npm run prisma:db:push --workspace backend
+```
+
+4. Run backend as usual:
+```bash
+npm run dev:backend
+```
+
+Optional one-shot migration from filesystem data to DB:
+```bash
+DATABASE_URL=postgresql://talkative:talkative@localhost:5432/talkative?schema=public \
+npm run migrate:fs-to-db --workspace backend -- --report backend/data/migrations/fs-to-db-report.json
+```
+
+## Docker Compose (full stack)
+
+Start full local stack (Postgres + backend + frontend):
+```bash
+docker compose up --build
+```
+
+Endpoints:
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend health: [http://localhost:4000/health](http://localhost:4000/health)
+
 ## Security Baseline (JWT + RBAC)
 
 Backend now enforces:
@@ -226,6 +273,20 @@ Example local token:
 ```bash
 node -e "console.log(require('jsonwebtoken').sign({sub:'local-admin',role:'admin',tenant_id:'tenant-default'}, process.env.AUTH_JWT_SECRET, {algorithm:'HS256',expiresIn:'1h'}))"
 ```
+
+## Structured Logging
+
+Backend emits JSON logs with request context fields:
+- `request_id`
+- `tenant_id`
+- `agent_id`
+- `run_id`
+
+You can provide correlation headers in incoming requests:
+- `x-request-id`
+- `x-tenant-id`
+- `x-agent-id`
+- `x-run-id`
 
 ## Prometheus Metrics
 
