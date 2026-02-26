@@ -8,7 +8,7 @@
 //
 // Design doc: docs/design-master-orchestrator.md
 
-import { RunRecord, RunStatus } from "../orchestrator/types.js";
+import type { RunRecord } from "../orchestrator/types.js";
 
 // ── Execution ──────────────────────────────────────────────
 

@@ -7,7 +7,7 @@
 // function directly by importing it indirectly through
 // plan creation with a mocked LLM.
 
-import { describe, it, mock, beforeEach } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 // We need to test validation logic. Since createPlan calls the LLM,
